@@ -1,0 +1,34 @@
+[core]
+	excludesfile = /Users/ericwu/.gitignore_global
+	editor = /usr/bin/vim
+[difftool "sourcetree"]
+	cmd = opendiff \"$LOCAL\" \"$REMOTE\"
+	path = 
+[mergetool "sourcetree"]
+	cmd = /Applications/SourceTree.app/Contents/Resources/opendiff-w.sh \"$LOCAL\" \"$REMOTE\" -ancestor \"$BASE\" -merge \"$MERGED\"
+	trustExitCode = true
+[user]
+	name = Eric
+	email = eric.wu@yieldmo.com
+[push]
+	default = matching
+[color]
+	ui = true
+[alias]
+	st = status
+	co = checkout
+	cm = commit 
+	br = branch
+	una = "reset HEAD"
+	unadd = "rest HEAD"
+	uncm = "reset --soft HEAD^"
+	uncommit = "reset --soft HEAD^"
+	last = "log -1"
+	lg = "log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit"
+	ad = add
+	a  = add
+	hist = log --pretty=format:\"%h %ad | %s%d [%an]\" --graph --date=short
+[filter "lfs"]
+	clean = git-lfs clean %f
+	smudge = git-lfs smudge %f
+	required = true
