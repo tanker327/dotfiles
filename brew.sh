@@ -33,7 +33,7 @@ brew install grc
 brew install wget --with-iri
 
 # Install more recent versions of some OS X tools
-brew install vim --override-system-vi
+brew install vim --with-override-system-vi
 brew install homebrew/dupes/grep
 brew install homebrew/dupes/openssh
 brew install homebrew/dupes/screen
@@ -69,6 +69,9 @@ brew install zopfli
 brew install ffmpeg --with-libvpx
 
 brew install terminal-notifier
+
+brew install s3cmd
+brew install nginx
 
 # brew install android-platform-tools
 # brew install pidcat   # colored logcat guy
