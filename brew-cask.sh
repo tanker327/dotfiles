@@ -25,3 +25,4 @@ brew cask install charles
 brew cask install cyberduck
 brew cask install mysqlworkbench
 brew cask install intellij-idea
+brew cask install dropbox
