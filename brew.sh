@@ -59,6 +59,9 @@ brew install mtr
 brew install the_silver_searcher
 brew install fzf
 
+
+brew instal ruby
+
 brew install git
 brew install tig
 brew install imagemagick --with-webp
