@@ -75,6 +75,7 @@ brew install ffmpeg --with-libvpx
 brew install terminal-notifier
 
 brew install s3cmd
+brew install awscli
 brew install nginx
 
 # brew install android-platform-tools
