@@ -10,6 +10,9 @@
 brew install caskroom/cask/brew-cask
 brew tap caskroom/versions
 
+
+brew cask install java
+
 brew cask install atom
 brew cask install google-chrome
 brew cask install sourcetree
