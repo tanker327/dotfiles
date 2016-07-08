@@ -139,3 +139,14 @@ function win(){
     grunt preview --target=34_windowplay
     grunt watch --target=34_windowplay
 }
+
+function setf(){
+    rm -f $HOME/Development/Yieldmo-Porjects/af-frontend/bower_components/ym-formats/formats.js
+    ln -s $HOME/Development/Yieldmo-Porjects/web-formats/dist/formats.js $HOME/Development/Yieldmo-Porjects/af-frontend/bower_components/ym-formats/formats.js
+}
+
+function init-project(){
+    bower i
+    npm i
+    grunt
+}
