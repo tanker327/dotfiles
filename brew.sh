@@ -60,7 +60,8 @@ brew install the_silver_searcher
 brew install fzf
 
 
-brew instal ruby
+brew install ruby
+brew install sbt
 
 brew install git
 brew install tig
