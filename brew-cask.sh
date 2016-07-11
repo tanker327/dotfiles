@@ -29,3 +29,7 @@ brew cask install cyberduck
 brew cask install mysqlworkbench
 brew cask install intellij-idea
 brew cask install dropbox
+
+# brew cask install istat-menus
+brew cask install go2shell
+brew cask install flycut
