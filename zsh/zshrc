@@ -144,7 +144,9 @@ function setf(){
     rm -f $HOME/Development/Yieldmo-Porjects/af-frontend/bower_components/ym-formats/formats.js
     ln -s $HOME/Development/Yieldmo-Porjects/web-formats/dist/formats.js $HOME/Development/Yieldmo-Porjects/af-frontend/bower_components/ym-formats/formats.js
 }
-
+function setym(){
+    ln -s ~/Development/Yieldmo-Porjects/sdk-js/dist/publisher/ym/ym.concat.js ~/Development/Yieldmo-Porjects/web-formats/preview/ym.min.js
+}
 function init-project(){
     bower i
     npm i
