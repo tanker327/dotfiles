@@ -79,6 +79,8 @@ brew install s3cmd
 brew install awscli
 brew install nginx
 
+brew install gnu-sed 
+
 # brew install android-platform-tools
 # brew install pidcat   # colored logcat guy
 
