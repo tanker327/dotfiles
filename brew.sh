@@ -64,6 +64,7 @@ brew install ruby
 brew install sbt
 
 brew install git
+brew install git-extras
 brew install tig
 brew install imagemagick --with-webp
 brew install node # This installs `npm` too using the recommended installation method
