@@ -18,9 +18,12 @@ fi
 mv -f $HOME/.vimrc  $BACKUP_FOLDER/.vimrc
 sudo ln -s $CURRENT_FOLDER/vimrc $HOME/.vimrc
 
+mv -f $HOME/.gvimrc  $BACKUP_FOLDER/.gvimrc
+sudo ln -s $CURRENT_FOLDER/vimrc $HOME/.gvimrc
+
 # Backup .vim folder
 mv -f $HOME/.vim  $BACKUP_FOLDER/.vim
-sudo ln -s $CURRENT_FOLDER $HOME/.vim
+sudo ln -s $CURRENT_FOLDER/. $HOME/.vim
 
 #Install Vundle
 mkdir bundle
