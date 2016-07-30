@@ -28,6 +28,7 @@ Plugin 'marijnh/tern_for_vim'
 Plugin 'scrooloose/nerdtree'
 Plugin 'tpope/vim-surround'
 Plugin 'mattn/emmet-vim'
+Plugin 'scrooloose/nerdcommenter'
 
 "==== here end my plugin ================================"
 

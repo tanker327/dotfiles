@@ -1,7 +1,7 @@
 "  ===============================
 "  Configure for Vundle and plugin
 "  ===============================
-source ./plugin
+source $HOME/.vim/plugin
 
 "========================
 ""Display setting
@@ -54,5 +54,5 @@ nnoremap <leader>n :set nu!<CR>
 nnoremap <leader>nt :NERDTreeToggle<CR>
 
 setlocal spell spelllang=en_us
-set spell
+" set spell
 
