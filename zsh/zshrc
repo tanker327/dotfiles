@@ -136,8 +136,8 @@ function hyper(){
 }
 
 function win(){
-    grunt preview --target=34_windowplay
-    grunt watch --target=34_windowplay
+    grunt preview --target=34_windowplay 
+    grunt watch --target=34_windowplay 
 }
 
 function setf(){
@@ -152,3 +152,9 @@ function init-project(){
     npm i
     grunt
 }
+
+#  ### compress video file
+#  ffmpeg -i video.mp4 -b 140k  video7.mp4
+#  ffmpeg -i video.mp4 -s 640x480 -b 512k -vcodec mpeg1video -acodec copy video1.mp4
+
+
