@@ -1,0 +1,29 @@
+// Place your settings in this file to overwrite the default settings
+{
+    // Auto saveing files
+    "files.autoSave": "afterDelay",
+    "files.autoSaveDelay": 1000,
+    // Editor display
+    "editor.fontSize": 12,
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    // Terminal
+    "terminal.integrated.shell.osx": "/bin/zsh",
+    // Remove trailing auto inserted whitespace
+    "editor.trimAutoWhitespace": true,
+    // When enabled, will trim trailing whitespace when you save a file.
+    "files.trimTrailingWhitespace": false,
+    "npm-intellisense.scanDevDependencies": true,
+    // Configure glob patterns for excluding files and folders.
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/.DS_Store": true
+    },
+    // ==========
+    // Extensions
+    // ==========
+    // Automatically update extensions
+    "extensions.autoUpdate": true
+}
