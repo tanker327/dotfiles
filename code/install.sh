@@ -12,4 +12,4 @@ fi
 mkdir $BACKUP_FOLDER/Code
 mv -f $HOME/Library/Application\ Support/Code/User $BACKUP_FOLDER/Code/User
 
-sudo ln -s $CURRENT_FOLDER/User $HOME/Library/Application\ Support/Code/User
+sudo ln -s $CURRENT_FOLDER/code/User $HOME/Library/Application\ Support/Code/User
