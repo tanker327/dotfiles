@@ -17,6 +17,10 @@
     "key": "cmd+, s",
     "command": "workbench.action.openSnippets"
   },
+  {
+    "key": "cmd+, k",
+    "command": "workbench.action.openGlobalKeybindings"
+  },
   // Move text up and down
   {
     "key": "alt+down",
