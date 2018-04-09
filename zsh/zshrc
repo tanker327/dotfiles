@@ -158,3 +158,4 @@ function init-project(){
 #  ffmpeg -i video.mp4 -s 640x480 -b 512k -vcodec mpeg1video -acodec copy video1.mp4
 
 
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion

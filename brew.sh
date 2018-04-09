@@ -56,29 +56,29 @@ brew install mtr
 
 
 # Install other useful binaries
-brew install the_silver_searcher
-brew install fzf
+#brew install the_silver_searcher
+#brew install fzf
 
 
-brew install ruby
-brew install sbt
+#brew install ruby
+#brew install sbt
 
 brew install git
 brew install git-extras
 brew install tig
-brew install imagemagick --with-webp
-brew install node # This installs `npm` too using the recommended installation method
+#brew install imagemagick --with-webp
+#brew install node # This installs `npm` too using the recommended installation method
 brew install pv
 brew install rename
 brew install tree
 brew install zopfli
-brew install ffmpeg --with-libvpx
+#brew install ffmpeg --with-libvpx
 
 brew install terminal-notifier
 
-brew install s3cmd
-brew install awscli
-brew install nginx
+#brew install s3cmd
+#brew install awscli
+#brew install nginx
 
 brew install gnu-sed 
 
