@@ -1,0 +1,23 @@
+#!/bin/bash
+
+if [ $1 == 'feature' ]
+then
+    BRANCH="dev"    
+elif [ $1 == 'hotfix' ]
+then
+    BRANCH="master"    
+else    
+    echo "You can only create a new feature or hotfix. Make sure you are using correct parameters"    
+    exit 1
+fi    
+
+CURRENT_BRANCH_NAME=$(git symbolic-ref HEAD | sed -e "s/^refs\/heads\///")
+RESULT=1
+
+if [ $CURRENT_BRANCH_NAME != $BRANCH ]
+then
+    git checkout $BRANCH    
+fi    
+
+git pull origin $BRANCH
+git checkout -b $1/$2

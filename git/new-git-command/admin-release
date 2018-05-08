@@ -1,0 +1,15 @@
+#!/bin/bash
+
+name=$1
+
+if [ $name == "" ]
+then
+    echo "The hash is empty"
+    exit 1
+fi    
+
+echo '---- backend -----------'
+s3cmd ls s3://yieldmo-builds/tld/ | grep $name
+
+echo '---- front-end ---------'
+s3cmd ls s3://yieldmo-builds/frontend/master/  | grep $name
