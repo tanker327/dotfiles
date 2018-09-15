@@ -1,11 +1,17 @@
+
+# User Folder & projects
+#USER_FOLDER=mm02942
+USER_FOLDER=tanker
+
+PROJECT_FOLDER=/Users/$USER_FOLDER/projects/haven-projects
+
+
 # If you come from bash you might have to change your $PATH.
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 
 # Path to your oh-my-zsh installation.
-  export ZSH=/Users/mm02942/.oh-my-zsh
-
-
-  export PATH=/Users/mm02942/dotfiles/git/new-git-command:/usr/local/sbin:$PATH
+  export ZSH=/Users/$USER_FOLDER/.oh-my-zsh
+  export PATH=/Users/$USER_FOLDER/dotfiles/git/new-git-command:/usr/local/sbin:$PATH
 
 
 # Set name of the theme to load. Optionally, if you set this to "random"
@@ -105,61 +111,61 @@ export NVM_DIR="$HOME/.nvm"
 
 
 function ba () {
-    cd /Users/mm02942/projects/haven-projects/haven
+    cd $PROJECT_FOLDER/haven
     npm run compile:ts 
     npm run build:admin
-    cd /Users/mm02942/projects/haven-projects/haven/docker
+    cd $PROJECT_FOLDER/haven/docker
     docker-compose restart admin
     cd - 
 }
 function dlog() {
-    cd /Users/mm02942/projects/haven-projects/haven/docker
+    cd $PROJECT_FOLDER/haven/docker
     docker-compose logs -f --tail 300 $1
     cd - 
 }
 function admin(){
-    cd /Users/mm02942/projects/haven-projects/haven/docker
+    cd $PROJECT_FOLDER/haven/docker
     docker-compose up -d startup webservice workflow admin nginx-admin
     cd -
 }
 
 function haven(){
-    cd /Users/mm02942/projects/haven-projects/haven/docker
+    cd $PROJECT_FOLDER/haven/docker
     docker-compose up -d startup webservice workflow haven nginx-haven
     cd -
 }
 function coverpath(){
-    cd /Users/mm02942/projects/haven-projects/haven/docker
+    cd $PROJECT_FOLDER/haven/docker
     docker-compose up -d startup webservice workflow coverpath-agent nginx-coverpath-agent coverpath-client nginx-coverpath-client
     cd -
 }
 
 function followup(){
-    cd /Users/mm02942/projects/haven-projects/haven/docker
+    cd $PROJECT_FOLDER/haven/docker
     docker-compose  up -d followup nginx-followup-haven
     cd -
 }
 
 function tojson (){
-	cd /Users/mm02942/projects/haven-projects/hit-module-metadata
+	cd $PROJECT_FOLDER/hit-module-metadata
 	node dist/cli/metadata-cli.js convert xlsxToJson workflow_base.xlsx -c 'Workflow' -h Base -o ../haven/apps/common/js/metadata/
 	cd -
 }
 function toxlsx (){
-	cd /Users/mm02942/projects/haven-projects/hit-module-metadata
+	cd $PROJECT_FOLDER/hit-module-metadata
 	node dist/cli/metadata-cli.js convert jsonToXlsx Workflow -d ../haven/apps/common/js/metadata/data/workflow/ -h Base  -o workflow_base.xlsx
 	cd -
 }
 
 function debug_admin(){
-    cd /Users/mm02942/projects/haven-projects/haven/docker
+    cd $PROJECT_FOLDER/haven/docker
     ./scripts/node-inspect.sh -d admin
     docker-compose up -d startup webservice workflow nginx-admin
     cd -
 }
 
 function debug_workflow(){
-    cd /Users/mm02942/projects/haven-projects/haven/docker
+    cd $PROJECT_FOLDER/haven/docker
     ./scripts/node-inspect.sh -d workflow
     docker-compose up -d startup webservice admin nginx-admin
     cd -
@@ -170,7 +176,7 @@ function ts(){
 }
 
 function rebuild_haven(){
-    cd /Users/mm02942/projects/haven-projects/haven/
+    cd $PROJECT_FOLDER/haven/
     npm run clean
     rm -rf node_modules/
     npm i
