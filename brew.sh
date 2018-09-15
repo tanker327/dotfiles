@@ -71,7 +71,7 @@ brew install tig
 brew install pv
 brew install rename
 brew install tree
-brew install zopfli
+#brew install zopfli
 #brew install ffmpeg --with-libvpx
 
 brew install terminal-notifier
@@ -80,7 +80,7 @@ brew install terminal-notifier
 #brew install awscli
 #brew install nginx
 
-brew install gnu-sed 
+#brew install gnu-sed 
 
 # brew install android-platform-tools
 # brew install pidcat   # colored logcat guy

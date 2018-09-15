@@ -1,15 +1,15 @@
 [core]
-	excludesfile = /Users/ericwu/.gitignore_global
+	excludesfile = /Users/mm02942/.gitignore_global
 	editor = /usr/bin/vim
 [difftool "sourcetree"]
 	cmd = opendiff \"$LOCAL\" \"$REMOTE\"
 	path = 
 [mergetool "sourcetree"]
-	cmd = /Applications/SourceTree.app/Contents/Resources/opendiff-w.sh \"$LOCAL\" \"$REMOTE\" -ancestor \"$BASE\" -merge \"$MERGED\"
+	cmd = /Applications/Sourcetree.app/Contents/Resources/opendiff-w.sh \"$LOCAL\" \"$REMOTE\" -ancestor \"$BASE\" -merge \"$MERGED\"
 	trustExitCode = true
 [user]
 	name = Eric Wu
-	email = eric.wu@yieldmo.com
+	email = eric@havenlife.com
 [push]
 	default = matching
 [color]
