@@ -1,4 +1,9 @@
 
+# Go path
+  export GOPATH=$HOME/projects/go
+  export PATH=$PATH:$GOPATH/bin
+
+
 # User Folder & projects
 USER_FOLDER=mm02942
 #USER_FOLDER=tanker
