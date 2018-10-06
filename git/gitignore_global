@@ -3,5 +3,5 @@
 .idea/
 .nvmrc
 makefile
-.postgres-bkp
+.postgres-*
 node_modules*
