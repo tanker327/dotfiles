@@ -8,7 +8,7 @@
 USER_FOLDER=mm02942
 #USER_FOLDER=tanker
 
-PROJECT_FOLDER=$HOME/projects/haven-projects/backup
+PROJECT_FOLDER=$HOME/projects/haven-projects
 
 
 # If you come from bash you might have to change your $PATH.
@@ -107,6 +107,8 @@ source $ZSH/oh-my-zsh.sh
 # Example aliases
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
+
+
 alias dc="docker-compose"
 alias d="docker"
 alias test="npm run compile:ts && npm run test"
@@ -130,13 +132,13 @@ function dlog() {
 }
 function admin(){
     cd $PROJECT_FOLDER/haven/docker
-    docker-compose up -d startup webservice workflow admin nginx-admin
+    docker-compose up -d startup workflow admin 
     cd -
 }
 
 function haven(){
     cd $PROJECT_FOLDER/haven/docker
-    docker-compose up -d startup webservice workflow haven nginx-haven
+    docker-compose up -d s haven product-startup product
     cd -
 }
 function coverpath(){
@@ -165,7 +167,7 @@ function toxlsx (){
 function debug_admin(){
     cd $PROJECT_FOLDER/haven/docker
     ./scripts/node-inspect.sh -d admin
-    docker-compose up -d startup webservice workflow nginx-admin
+    docker-compose up -d startup workflow nginx-admin
     cd -
 }
 
@@ -178,6 +180,17 @@ function debug_workflow(){
 
 function ts(){
     npm run compile:ts
+}
+
+function tsa(){
+    npm run compile:ts
+    npm run build:admin
+}
+
+function tsah(){
+    npm run compile:ts
+    npm run build:admin
+    npm run build:haven
 }
 
 function rebuild_haven(){
