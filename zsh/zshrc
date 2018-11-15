@@ -167,14 +167,13 @@ function toxlsx (){
 function debug_admin(){
     cd $PROJECT_FOLDER/haven/docker
     ./scripts/node-inspect.sh -d admin
-    docker-compose up -d startup workflow nginx-admin
     cd -
 }
 
 function debug_workflow(){
     cd $PROJECT_FOLDER/haven/docker
     ./scripts/node-inspect.sh -d workflow
-    docker-compose up -d startup webservice admin nginx-admin
+    docker-compose up -d admin haven 
     cd -
 }
 
