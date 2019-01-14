@@ -113,6 +113,24 @@ alias dc="docker-compose"
 alias d="docker"
 alias test="npm run compile:ts && npm run test"
 
+alias lworkflow="dlog workflow"
+alias lhaven="dlog haven"
+alias ladmin="dlog admin"
+alias lproduct="dlog product"
+alias lproduct_startup="dlog product-startup"
+alias ldatabase="dlog database"
+alias lstartup="dlog startup"
+
+alias rstartup="dc up -d startup"
+alias rproduct="dc up -d product-startup product"
+alias radmin="dc up -d admin"
+alias rhaven="dc up -d haven"
+alias rworkflow="dc up -d workflow hit-workflow hit-data-svc uw-api uw-workflow"
+alias rall="dc up -d startup workflow product-startup product admin haven hit-workflow hit-data-svc uw-api uw-workflow" 
+alias ruw="dc up -d hit-workflow hit-data-svc uw-api uw-workflow"
+
+
+
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
 
@@ -129,6 +147,15 @@ function dlog() {
     cd $PROJECT_FOLDER/haven/docker
     docker-compose logs -f --tail 300 $1
     cd - 
+}
+
+function ah(){
+    cd $PROJECT_FOLDER/haven/docker
+    docker-compose up -d startup product product-startup admin haven workflow
+}
+function wf(){
+    cd $PROJECT_FOLDER/haven/docker
+    docker-compose up -d workflow
 }
 function admin(){
     cd $PROJECT_FOLDER/haven/docker
@@ -182,22 +209,14 @@ function ts(){
 }
 
 function tsa(){
-    npm run compile:ts
+    ts	
     npm run build:admin
 }
 
 function tsah(){
-    npm run compile:ts
-    npm run build:admin
+    tsa
     npm run build:haven
 }
-
-function rebuild_haven(){
-    cd $PROJECT_FOLDER/haven/
-    npm run clean
-    rm -rf node_modules/
-    npm i
-    npm run compile:ts 
-    npm run build:admin
-    npm run build:haven
+function npm-rebuild(){
+    rm -rf node_modules && npm i
 }
