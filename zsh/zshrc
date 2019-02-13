@@ -129,7 +129,7 @@ alias rworkflow="dc up -d workflow hit-workflow hit-data-svc uw-api uw-workflow"
 alias rall="dc up -d startup workflow product-startup product admin haven hit-workflow hit-data-svc uw-api uw-workflow" 
 alias ruw="dc up -d hit-workflow hit-data-svc uw-api uw-workflow"
 
-
+alias tscp="npm run compile:ts && npm run build:coverpath-client && npm run build:coverpath-agent" 
 
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
