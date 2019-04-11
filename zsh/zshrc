@@ -111,9 +111,8 @@ source $ZSH/oh-my-zsh.sh
 
 alias dc="docker-compose"
 alias d="docker"
-alias test="npm run compile:ts && npm run test"
 
-alias lworkflow="dlog workflow"
+alias lworkflow="dlog uw-workflow"
 alias lhaven="dlog haven"
 alias ladmin="dlog admin"
 alias lproduct="dlog product"
@@ -130,6 +129,12 @@ alias rall="dc up -d startup workflow product-startup product admin haven hit-wo
 alias ruw="dc up -d hit-workflow hit-data-svc uw-api uw-workflow"
 
 alias tscp="npm run compile:ts && npm run build:coverpath-client && npm run build:coverpath-agent" 
+
+alias nr="npm run"
+
+alias patch-change="git diff --no-prefix "
+alias patch-uw-workflow="patch -p0 < ~/dotfiles/patch/uw-workflow-inspect.patch"
+
 
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
@@ -220,3 +225,16 @@ function tsah(){
 function npm-rebuild(){
     rm -rf node_modules && npm i
 }
+
+
+function rgbuild(){
+    npm run docker:build:regression-local
+}
+function rgrun(){
+    npm run docker:run:regression-local:$1
+}
+function rgstop(){
+    npm run docker:stop:regression
+}
+
+

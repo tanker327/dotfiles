@@ -1,0 +1,14 @@
+diff --git docker/docker-compose.yml docker/docker-compose.yml
+index a35f681463..fd90cbbc58 100644
+--- docker/docker-compose.yml
++++ docker/docker-compose.yml
+@@ -348,6 +348,9 @@ services:
+     << : *hit-app
+     image: ${COMPOSE_HIT_DEBIAN_WF:-havenlife/hit-debian_workflow:development}
+     privileged: true
++    ports:
++      - '6859:5858'
++    command: ./docker/scripts/start-node-inspect.sh -p 6859
+     environment:
+       - APPLICATION=uw-workflow
+       - TELEGRAF_HOST=172.17.0.1
