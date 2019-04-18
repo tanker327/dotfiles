@@ -128,7 +128,15 @@ alias rworkflow="dc up -d workflow hit-workflow hit-data-svc uw-api uw-workflow"
 alias rall="dc up -d startup workflow product-startup product admin haven hit-workflow hit-data-svc uw-api uw-workflow" 
 alias ruw="dc up -d hit-workflow hit-data-svc uw-api uw-workflow"
 
-alias tscp="npm run compile:ts && npm run build:coverpath-client && npm run build:coverpath-agent" 
+alias ts="npm run compile:ts"
+alias tsa="ts && npm run build:admin"
+alias tsh="ts && npm run build:haven"
+alias tsah="tsa && npm run build:haven"
+alias tscp="ts && npm run build:coverpath-client && npm run build:coverpath-agent" 
+alias tsahcp="tsah && http://localhost:4012/mocklogin"
+
+
+alias dlog="dc logs -f --tail 300"
 
 alias nr="npm run"
 
@@ -146,11 +154,6 @@ function ba () {
     npm run build:admin
     cd $PROJECT_FOLDER/haven/docker
     docker-compose restart admin
-    cd - 
-}
-function dlog() {
-    cd $PROJECT_FOLDER/haven/docker
-    docker-compose logs -f --tail 300 $1
     cd - 
 }
 
@@ -209,19 +212,6 @@ function debug_workflow(){
     cd -
 }
 
-function ts(){
-    npm run compile:ts
-}
-
-function tsa(){
-    ts	
-    npm run build:admin
-}
-
-function tsah(){
-    tsa
-    npm run build:haven
-}
 function npm-rebuild(){
     rm -rf node_modules && npm i
 }
