@@ -1,6 +1,7 @@
 
 # Go path
-  export GOPATH=$HOME/projects/go
+  export GOPATH=$HOME/projects/go-lib:$HOME/projects/go
+  export GOBIN=$HOME/projects/go/bin
   export PATH=$PATH:$GOPATH/bin
 
 
@@ -125,7 +126,8 @@ alias rproduct="dc up -d product-startup product"
 alias radmin="dc up -d admin"
 alias rhaven="dc up -d haven"
 alias rworkflow="dc up -d workflow hit-workflow hit-data-svc uw-api uw-workflow"
-alias rall="dc up -d startup workflow product-startup product admin haven hit-workflow hit-data-svc uw-api uw-workflow" 
+alias rall="dc up -d startup  product-startup product admin haven hit-workflow hit-data-svc" 
+alias ruw="dc up -d"
 alias ruw="dc up -d hit-workflow hit-data-svc uw-api uw-workflow"
 
 alias ts="npm run compile:ts"
@@ -196,8 +198,7 @@ function tojson (){
 function toxlsx (){
 	cd $PROJECT_FOLDER/hit-module-metadata
 	node dist/cli/metadata-cli.js convert jsonToXlsx Workflow -d ../haven/apps/common/js/metadata/data/workflow/ -h Base  -o workflow_base.xlsx
-	cd -
-}
+	cd - }
 
 function debug_admin(){
     cd $PROJECT_FOLDER/haven/docker
