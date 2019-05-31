@@ -132,11 +132,12 @@ alias ruw="dc up -d hit-workflow hit-data-svc uw-api uw-workflow"
 
 alias ts="npm run compile:ts"
 alias tsa="ts && npm run build:admin"
-alias tsh="ts && npm run build:haven"
-alias tsah="tsa && npm run build:haven"
+alias tsh="ts && npm run build:haven && npm run build:haven-static"
+alias tsah="tsa && npm run build:haven && npm run build:haven-static"
 alias tscp="ts && npm run build:coverpath-client && npm run build:coverpath-agent" 
 alias tsahcp="tsah && http://localhost:4012/mocklogin"
 
+alias up="dc up -d"
 
 alias dlog="dc logs -f --tail 300"
 

@@ -28,6 +28,8 @@
 	ad = add
 	a  = add
 	hist = log --pretty=format:\"%h %ad | %s%d [%an]\" --graph --date=short
+	pushf = "push -f origin"
+	fpush =  pushf 
 [filter "lfs"]
 	clean = git-lfs clean %f
 	smudge = git-lfs smudge %f
