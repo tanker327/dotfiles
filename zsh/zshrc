@@ -129,6 +129,11 @@ alias rworkflow="dc up -d workflow hit-workflow hit-data-svc uw-api uw-workflow"
 alias rall="dc up -d startup  product-startup product admin haven hit-workflow hit-data-svc" 
 alias ruw="dc up -d"
 alias ruw="dc up -d hit-workflow hit-data-svc uw-api uw-workflow"
+alias dcup="dc up -d"
+alias uwrun="npm-rebuild && npm run clean && tsa && cd docker && dc up -d"
+alias hitrun="npm-rebuild && npm run clean && tsah  && cd docker  && rall"
+
+alias debug="dc -f docker-compose.yml -f docker-compose-node-inspect.yml up -d"
 
 alias ts="npm run compile:ts"
 alias tsa="ts && npm run build:admin"
@@ -136,7 +141,7 @@ alias tsh="ts && npm run build:haven && npm run build:haven-static"
 alias tsah="tsa && npm run build:haven && npm run build:haven-static"
 alias tscp="ts && npm run build:coverpath-client && npm run build:coverpath-agent" 
 alias tsahcp="tsah && http://localhost:4012/mocklogin"
-
+alias ba="ts && npm run build:admin && dc restart uw-admin && dlog uw-admin"
 alias up="dc up -d"
 
 alias dlog="dc logs -f --tail 300"
@@ -150,15 +155,6 @@ alias patch-uw-workflow="patch -p0 < ~/dotfiles/patch/uw-workflow-inspect.patch"
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
 
-
-function ba () {
-    cd $PROJECT_FOLDER/haven
-    npm run compile:ts 
-    npm run build:admin
-    cd $PROJECT_FOLDER/haven/docker
-    docker-compose restart admin
-    cd - 
-}
 
 function ah(){
     cd $PROJECT_FOLDER/haven/docker
