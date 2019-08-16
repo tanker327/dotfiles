@@ -143,6 +143,7 @@ alias tsah="tsa && npm run build:haven && npm run build:haven-static"
 alias tscp="ts && npm run build:coverpath-client && npm run build:coverpath-agent" 
 alias tsahcp="tsah && http://localhost:4012/mocklogin"
 alias ba="ts && npm run build:admin && dc restart uw-admin && dlog uw-admin"
+alias bcp="npm run build:coverpath-agent && npm run build:coverpath-client"
 alias up="dc up -d"
 
 alias dlog="dc logs -f --tail 300"
