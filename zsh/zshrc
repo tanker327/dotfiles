@@ -127,6 +127,7 @@ alias radmin="dc up -d admin"
 alias rhaven="dc up -d haven"
 alias rworkflow="dc up -d workflow hit-workflow hit-data-svc uw-api uw-workflow"
 alias rall="dc up -d startup  product-startup product admin haven hit-workflow hit-data-svc" 
+alias rallcp="dc up -d startup  product-startup product admin haven hit-workflow hit-data-svc coverpath-agent coverpath-client" 
 alias ruw="dc up -d"
 alias ruw="dc up -d hit-workflow hit-data-svc uw-api uw-workflow"
 alias dcup="dc up -d"
@@ -230,4 +231,4 @@ function copy_api() {
 	cp -R ./data-model/. ../haven/node_modules/@havenlife/hit-api-client/data-model/
 	cp -R ./dist/. ../underwriting/node_modules/@havenlife/hit-api-client/dist/
 	cp -R ./data-model/. ../underwriting/node_modules/@havenlife/hit-api-client/data-model/
-}j
+}
