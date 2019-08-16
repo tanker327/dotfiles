@@ -225,4 +225,9 @@ function rgstop(){
     npm run docker:stop:regression
 }
 
-
+function copy_api() {
+	cp -R ./dist/. ../haven/node_modules/@havenlife/hit-api-client/dist/
+	cp -R ./data-model/. ../haven/node_modules/@havenlife/hit-api-client/data-model/
+	cp -R ./dist/. ../underwriting/node_modules/@havenlife/hit-api-client/dist/
+	cp -R ./data-model/. ../underwriting/node_modules/@havenlife/hit-api-client/data-model/
+}j
