@@ -1,0 +1,44 @@
+PROJECT_FOLDER=$HOME/projects/haven-projects
+
+COMPOSE_FILE_ARG="-f ./docker-compose.yml -f ./docker-compose-dev-local-ports.yml "
+COMPOSE_FILE_DEBUG_ARG="-f docker-compose-node-inspect.yml "
+
+alias d="docker"
+
+alias dc="docker-compose ${COMPOSE_FILE_ARG} "
+# alias dup="dc up -d"
+# alias ddown="dc down"
+alias debug="dc $COMPOSE_FILE_DEBUG_ARG up -d "
+alias dlog="dc logs -f --tail 300"
+
+alias dkillall="docker kill $(docker ps -q)"
+
+
+# alias rall="dc up -d startup  product-startup product admin haven hit-workflow hit-data-svc" 
+
+alias npm-rebuild="rm -rf node_modules && npm i"
+
+
+
+
+
+alias ts="npm run clean && npm run compile:ts"
+alias tsa="ts && npm run build:admin"
+alias tsh="ts && npm run build:haven && npm run build:haven-static"
+alias tsah="tsa && npm run build:haven && npm run build:haven-static"
+alias tscp="ts && npm run build:coverpath-client && npm run build:coverpath-agent" 
+alias ba="ts && npm run build:admin && ra"
+alias ra="dc restart uw-admin && dlog uw-admin"
+
+
+
+
+# function tojson (){
+# 	cd $PROJECT_FOLDER/hit-module-metadata
+# 	node dist/cli/metadata-cli.js convert xlsxToJson workflow_base.xlsx -c 'Workflow' -h Base -o ../haven/apps/common/js/metadata/
+# 	cd -
+# }
+# function toxlsx (){
+# 	cd $PROJECT_FOLDER/hit-module-metadata
+# 	node dist/cli/metadata-cli.js convert jsonToXlsx Workflow -d ../haven/apps/common/js/metadata/data/workflow/ -h Base  -o workflow_base.xlsx
+# 	cd - }
