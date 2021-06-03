@@ -2,10 +2,11 @@ PROJECT_FOLDER=$HOME/projects/haven-projects
 
 COMPOSE_FILE_ARG="-f ./docker-compose.yml -f ./docker-compose-dev-local-ports.yml "
 COMPOSE_FILE_DEBUG_ARG="-f docker-compose-node-inspect.yml "
+DOCKER_COMPOSE_COMMAND="docker-compose"
 
 alias d="docker"
-
-alias dc="docker-compose ${COMPOSE_FILE_ARG} "
+alias dc="${DOCKER_COMPOSE_COMMAND} ${COMPOSE_FILE_ARG} "
+alias up="dc up -d"
 # alias dup="dc up -d"
 # alias ddown="dc down"
 alias debug="dc $COMPOSE_FILE_DEBUG_ARG up -d "
@@ -30,8 +31,8 @@ alias tscp="ts && npm run build:coverpath-client && npm run build:coverpath-agen
 alias ba="ts && npm run build:admin && ra"
 alias ra="dc restart uw-admin && dlog uw-admin"
 
-
-
+# for Docker-dependence
+alias rall="./devbox sbu haven && ./devbox up admin hit-data-svc pdfstream quotes product esign followup startup webservice policy-admin policy-admin-api"
 
 # function tojson (){
 # 	cd $PROJECT_FOLDER/hit-module-metadata
