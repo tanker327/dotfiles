@@ -12,7 +12,7 @@ brew tap caskroom/versions
 
 
 # Env
-#brew cask install java
+brew cask install java
 #brew cask install java8
 
 brew cask install alfred
@@ -25,6 +25,9 @@ brew cask install iterm2
 brew cask install macvim
 brew cask install sourcetree
 brew cask install visual-studio-code
+brew cask install sublime-text
+brew cask install dbeaver-community
+brew cask install 
 #brew cask install sqlitestudio
 #brew cask install webstorm
 #brew cask install intellij-idea
@@ -42,7 +45,7 @@ brew cask install firefox
 #brew cask install macid
 brew cask install slack
 brew cask install evernote
-brew cask install dropbox
+# brew cask install dropbox
 
 # brew cask install istat-menus
 brew cask install go2shell
@@ -50,7 +53,7 @@ brew cask install go2shell
 #brew cask install xmind
 #brew cask install tunnelblick
 #brew cask install flycut
-brew cask install wechat
+# brew cask install wechat
 #brew cask install Kitematic 
 #brew cask install gemini
 #brew cask install cheatsheet
