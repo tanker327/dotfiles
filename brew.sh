@@ -66,6 +66,7 @@ brew install homebrew/dupes/screen
 brew install git
 brew install git-extras
 brew install tig
+brew install diff-so-fancy
 brew install imagemagick 
 #brew install node # This installs `npm` too using the recommended installation method
 # brew install pv

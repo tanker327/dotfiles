@@ -27,14 +27,14 @@ brew install sourcetree
 brew install visual-studio-code
 brew install sublime-text
 brew install dbeaver-community
-brew install 
+# brew install 
 #brew install sqlitestudio
 #brew install webstorm
 #brew install intellij-idea
 #brew install charles
 #brew install cyberduck
 #brew install mysqlworkbench
-brew install macdown
+#brew install macdown
 
 # apps
 
@@ -43,7 +43,7 @@ brew install google-chrome-canary
 brew install firefox
 #brew install bettertouchtool
 #brew install macid
-brew install slack
+#brew install slack
 brew install evernote
 # brew install dropbox
 
@@ -57,7 +57,7 @@ brew install go2shell
 #brew install Kitematic 
 #brew install gemini
 #brew install cheatsheet
-brew install pgadmin4
+#brew install pgadmin4
 
 
 
