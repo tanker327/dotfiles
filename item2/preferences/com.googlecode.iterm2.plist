@@ -635,6 +635,12 @@
 			<string>/Users/gw12655</string>
 		</dict>
 	</array>
+	<key>OpenArrangementAtStartup</key>
+	<true/>
+	<key>OpenBookmark</key>
+	<true/>
+	<key>OpenNoWindowsAtStartup</key>
+	<false/>
 	<key>PMPrintingExpandedStateForPrint2</key>
 	<false/>
 	<key>PointerActions</key>
@@ -684,9 +690,24 @@
 			<key>version</key>
 			<integer>1</integer>
 		</dict>
+		<dict>
+			<key>guid</key>
+			<string>F80A1716-B790-4C29-8639-406AA968BA7B</string>
+			<key>title</key>
+			<string>docker for metron</string>
+			<key>value</key>
+			<string>./devbox up-with-ports database  s3-mock  wook-keeper scarab-scribe</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
 	</array>
 	<key>SoundForEsc</key>
 	<false/>
+	<key>ToolbeltTools</key>
+	<array>
+		<string>Snippets</string>
+		<string>Notes</string>
+	</array>
 	<key>VisualIndicatorForEsc</key>
 	<false/>
 	<key>Window Arrangements</key>
