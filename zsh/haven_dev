@@ -5,7 +5,8 @@ COMPOSE_FILE_DEBUG_ARG="-f docker-compose-node-inspect.yml "
 DOCKER_COMPOSE_COMMAND="docker-compose"
 
 alias d="docker"
-alias dc="${DOCKER_COMPOSE_COMMAND} ${COMPOSE_FILE_ARG} "
+# alias dc="${DOCKER_COMPOSE_COMMAND} ${COMPOSE_FILE_ARG} "
+alias dc="${DOCKER_COMPOSE_COMMAND}"
 alias up="dc up -d"
 # alias dup="dc up -d"
 # alias ddown="dc down"
@@ -20,8 +21,8 @@ alias dkillall="docker kill $(docker ps -q)"
 alias npm-rebuild="rm -rf node_modules && npm i"
 
 
-
-
+alias newdb="./devbox down && rm -rf .postgres && cp -rf .postgres_tmp .postgres && ./devbox up-with-ports database rabbit s3-mock pdfstream  wook-keeper scarab-scribe"
+alias b=" npm run clean && npm run build"
 
 alias ts="npm run clean && npm run compile:ts"
 alias tsa="ts && npm run build:admin"
@@ -33,6 +34,9 @@ alias ra="dc restart uw-admin && dlog uw-admin"
 
 # for Docker-dependence
 alias rall="./devbox sbu haven && ./devbox up admin hit-data-svc pdfstream quotes product esign followup startup webservice policy-admin policy-admin-api"
+
+alias ent="./devbox up database redis entitlements"
+
 
 # function tojson (){
 # 	cd $PROJECT_FOLDER/hit-module-metadata
