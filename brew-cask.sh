@@ -40,7 +40,7 @@ brew install dbeaver-community
 
 brew install google-chrome
 brew install google-chrome-canary
-brew install firefox
+#brew install firefox
 #brew install bettertouchtool
 #brew install macid
 #brew install slack
