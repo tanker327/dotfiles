@@ -62,3 +62,4 @@ brew install go2shell
 
 
 
+brew install --cask obsidian
