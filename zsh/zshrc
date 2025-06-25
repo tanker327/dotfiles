@@ -108,9 +108,23 @@ export NVM_DIR="$HOME/.nvm"
   [ -s "/usr/local/opt/nvm/etc/bash_completion.d/nvm" ] && \. "/usr/local/opt/nvm/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
 
 
-# import dev config for haven
-source ~/dotfiles/zsh/haven_dev
+# Created by `pipx` on 2024-06-15 23:14:13
+export PATH="$PATH:/Users/ericwu/.local/bin"
 
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+# import env keys if exists
+[ -f ~/.env-keyexport ] && source ~/.env-keyexport
+
+
+JAVA_HOME=$(/usr/libexec/java_home)
+export PATH="$JAVA_HOME/bin:$PATH"
+
+
+source ~/dotfiles/zsh/dev
 
 # The following lines have been added by Docker Desktop to enable Docker CLI completions.
 fpath=(/Users/tanker/.docker/completions $fpath)

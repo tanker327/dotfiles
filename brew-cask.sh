@@ -22,7 +22,7 @@ brew install alfred
 # Dev tool
 brew install iterm2
 #brew install atom
-brew install macvim
+#brew install macvim
 brew install sourcetree
 brew install visual-studio-code
 brew install sublime-text
@@ -44,7 +44,7 @@ brew install firefox
 #brew install bettertouchtool
 #brew install macid
 #brew install slack
-brew install evernote
+#brew install evernote
 # brew install dropbox
 
 # brew install istat-menus

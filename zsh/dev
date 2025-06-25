@@ -1,0 +1,26 @@
+PROJECT_FOLDER=$HOME/projects
+
+WORK_PROJECT_FOLDER=$HOME/projects/workflow
+
+
+DOCKER_COMPOSE_COMMAND="docker compose"
+
+alias d="docker"
+alias dc="${DOCKER_COMPOSE_COMMAND}"
+
+alias dcr="dc down && dc up -d"
+alias dcps="dc ps"
+
+alias up="dc up -d"
+alias down="dc down"
+
+alias dlog="dc logs -f --tail 300"
+
+alias npm-rebuild="rm -rf node_modules && npm i"
+
+alias t=tmux
+alias tn="tmux new -s"
+alias ta="tmux a"
+alias tat="tmux attch -t"
+alias tkt="tmux kill-session -t"
+alias tls="tmux ls"

@@ -1,5 +1,5 @@
 [core]
-	excludesfile = /Users/gw12655/.gitignore_global
+	excludesfile = /Users/ericwu/.gitignore_global
 	editor = /usr/bin/vim
 	pager = diff-so-fancy | less --tabs=4 -RFX
 [difftool "sourcetree"]
@@ -9,8 +9,8 @@
 	cmd = /Applications/Sourcetree.app/Contents/Resources/opendiff-w.sh \"$LOCAL\" \"$REMOTE\" -ancestor \"$BASE\" -merge \"$MERGED\"
 	trustExitCode = true
 [user]
-	name = Eric Wu
-	email = eric@loopdoop.com
+	name = Eric
+	email = tanker327@gmail.com
 [push]
 	default = matching
 [color]
@@ -38,7 +38,7 @@
 	required = true
 	process = git-lfs filter-process
 [commit]
-	template = /Users/gw12655/.stCommitMsg
+	template = /Users/ericwu/.stCommitMsg
 [interactive]
 	diffFilter = diff-so-fancy --patch
 [color "diff-highlight"]
