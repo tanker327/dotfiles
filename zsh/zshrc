@@ -101,13 +101,8 @@ source $ZSH/oh-my-zsh.sh
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 
-
-export NVM_DIR="$HOME/.nvm"
-  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-  [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-
 # import dev config for haven
-source ~/dotfiles/zsh/haven_dev
+# source ~/dotfiles/zsh/haven_dev
 # Created by `pipx` on 2024-06-15 23:14:13
 export PATH="$PATH:/Users/ericwu/.local/bin"
 
