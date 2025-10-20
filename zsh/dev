@@ -24,3 +24,5 @@ alias ta="tmux a"
 alias tat="tmux attch -t"
 alias tkt="tmux kill-session -t"
 alias tls="tmux ls"
+
+alias cc="claude --dangerously-skip-permissions"
