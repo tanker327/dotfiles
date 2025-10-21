@@ -10,6 +10,7 @@ alias dc="${DOCKER_COMPOSE_COMMAND}"
 
 alias dcr="dc down && dc up -d"
 alias dcps="dc ps"
+alias dcupdate="docker compose up -d --no-deps --pull always"
 
 alias up="dc up -d"
 alias down="dc down"
