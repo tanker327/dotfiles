@@ -124,8 +124,10 @@ fi
 
 source ~/dotfiles/zsh/dev
 
-# The following lines have been added by Docker Desktop to enable Docker CLI completions.
-fpath=(/Users/tanker/.docker/completions $fpath)
+# Docker CLI completions (macOS Docker Desktop)
+if [ -d "$HOME/.docker/completions" ]; then
+  fpath=($HOME/.docker/completions $fpath)
+fi
 autoload -Uz compinit
 compinit
 # End of Docker CLI completions
