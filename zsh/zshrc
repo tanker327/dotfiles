@@ -104,7 +104,8 @@ source $ZSH/oh-my-zsh.sh
 # import dev config for haven
 # source ~/dotfiles/zsh/haven_dev
 # Created by `pipx` on 2024-06-15 23:14:13
-export PATH="$PATH:/Users/ericwu/.local/bin"
+
+export PATH="$PATH:$HOME/.local/bin"
 
 
 export NVM_DIR="$HOME/.nvm"
@@ -134,3 +135,8 @@ echo "\033[1;32m  Welcome back, this is $(hostname)  \033[0m"
 echo "\033[1;36m======================================================\033[0m\n"
 
 
+
+# Added by Antigravity
+if [ -d "$HOME/.antigravity/antigravity/bin" ]; then
+  export PATH="$HOME/.antigravity/antigravity/bin:$PATH"
+fi
