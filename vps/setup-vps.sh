@@ -322,76 +322,16 @@ install_security() {
 install_zsh() {
     skip_if_complete "install_zsh" && return 0
 
-    section_header "Installing Zsh + Oh My Zsh"
+    section_header "Installing Zsh (System Package)"
 
-    log_info "Installing Zsh..."
+    log_info "Installing Zsh package..."
     apt install -y zsh
-
-    log_info "Installing Oh My Zsh for root..."
-    if [ ! -d /root/.oh-my-zsh ]; then
-        sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
-        log_success "Oh My Zsh installed for root"
-    else
-        log_info "Oh My Zsh already installed for root"
-    fi
-
-    # Change default shell for root
-    chsh -s $(which zsh) root
-
-    log_success "Zsh configured"
+    log_success "Zsh installed (will be configured for user later)"
 
     mark_step_complete "install_zsh"
 }
 
-install_uv_python() {
-    skip_if_complete "install_uv_python" && return 0
-
-    section_header "Installing UV (Python Package Manager)"
-
-    log_info "Installing UV..."
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-
-    # Source UV for current session
-    export PATH="$HOME/.local/bin:$PATH"
-
-    log_info "Installing Python 3.12 via UV..."
-    if command -v uv &> /dev/null; then
-        uv python install 3.12
-        log_success "UV and Python 3.12 installed"
-        echo "UV_PYTHON_VERSION=3.12" >> "$SETUP_INFO_FILE"
-    else
-        log_error "UV installation failed or not in PATH"
-    fi
-
-    mark_step_complete "install_uv_python"
-}
-
-install_nvm_node() {
-    skip_if_complete "install_nvm_node" && return 0
-
-    section_header "Installing NVM + Node.js 22"
-
-    log_info "Installing NVM..."
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
-
-    # Source NVM for current session
-    export NVM_DIR="$HOME/.nvm"
-    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-
-    log_info "Installing Node.js 22..."
-    if [ -d "$NVM_DIR" ]; then
-        nvm install 22
-        nvm alias default 22
-        nvm use default
-        log_success "NVM and Node.js 22 installed"
-        node --version >> "$SETUP_INFO_FILE"
-        npm --version >> "$SETUP_INFO_FILE"
-    else
-        log_error "NVM installation failed"
-    fi
-
-    mark_step_complete "install_nvm_node"
-}
+# UV and NVM installation removed - will be installed for user in install_user_environment()
 
 install_docker() {
     skip_if_complete "install_docker" && return 0
@@ -441,19 +381,7 @@ install_tailscale() {
     mark_step_complete "install_tailscale"
 }
 
-install_claude_code() {
-    skip_if_complete "install_claude_code" && return 0
-
-    section_header "Installing Claude Code CLI"
-
-    log_info "Installing Claude Code..."
-    curl -fsSL https://installs.claude.ai/install.sh | sh
-
-    log_success "Claude Code installed"
-    log_info "Run 'claude auth' to authenticate Claude Code"
-
-    mark_step_complete "install_claude_code"
-}
+# Claude Code installation removed - will be installed for user in install_user_environment()
 
 setup_swap_space() {
     skip_if_complete "setup_swap_space" && return 0
@@ -514,10 +442,10 @@ create_user() {
     mark_step_complete "create_user"
 }
 
-install_dotfiles() {
-    skip_if_complete "install_dotfiles" && return 0
+install_user_environment() {
+    skip_if_complete "install_user_environment" && return 0
 
-    section_header "Installing Dotfiles Configuration"
+    section_header "Setting Up User Development Environment"
 
     USER_HOME="/home/$NEW_USERNAME"
     DOTFILES_DIR="$USER_HOME/dotfiles"
@@ -529,10 +457,14 @@ install_dotfiles() {
     fi
 
     # Clone as the new user
-    su - "$NEW_USERNAME" -c "git clone https://github.com/tanker327/dotfiles.git $DOTFILES_DIR"
+    if ! su - "$NEW_USERNAME" -c "git clone https://github.com/tanker327/dotfiles.git $DOTFILES_DIR" 2>&1 | tee -a "$SETUP_INFO_FILE"; then
+        log_error "Failed to clone dotfiles repository"
+        log_warning "Continuing without dotfiles... User can clone manually later"
+        return 1
+    fi
 
     if [ ! -d "$DOTFILES_DIR" ]; then
-        log_error "Failed to clone dotfiles repository"
+        log_error "Dotfiles directory not found after cloning"
         return 1
     fi
 
@@ -590,9 +522,76 @@ install_dotfiles() {
         fi
     fi
 
-    log_success "Dotfiles configured for $NEW_USERNAME"
+    # Install NVM for new user
+    if [ "$INSTALL_NVM" = "y" ]; then
+        if [ ! -d "$USER_HOME/.nvm" ]; then
+            log_info "Installing NVM for $NEW_USERNAME..."
+            su - "$NEW_USERNAME" -c 'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash'
 
-    mark_step_complete "install_dotfiles"
+            # Install Node.js 22 for the user
+            su - "$NEW_USERNAME" -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && nvm install 22 && nvm alias default 22 && nvm use default'
+            log_success "NVM and Node.js 22 installed for $NEW_USERNAME"
+        else
+            log_info "NVM already installed for $NEW_USERNAME"
+        fi
+    fi
+
+    # Install UV for new user
+    if [ "$INSTALL_UV" = "y" ]; then
+        if [ ! -f "$USER_HOME/.local/bin/uv" ]; then
+            log_info "Installing UV for $NEW_USERNAME..."
+            su - "$NEW_USERNAME" -c 'curl -LsSf https://astral.sh/uv/install.sh | sh'
+
+            # Install Python 3.12 for the user
+            su - "$NEW_USERNAME" -c 'export PATH="$HOME/.local/bin:$PATH" && uv python install 3.12'
+            log_success "UV and Python 3.12 installed for $NEW_USERNAME"
+        else
+            log_info "UV already installed for $NEW_USERNAME"
+        fi
+    fi
+
+    # Install Claude Code for new user
+    if [ "$INSTALL_CLAUDE" = "y" ]; then
+        log_info "Installing Claude Code for $NEW_USERNAME..."
+        su - "$NEW_USERNAME" -c 'curl -fsSL https://installs.claude.ai/install.sh | sh'
+        log_success "Claude Code installed for $NEW_USERNAME"
+        log_info "User should run 'claude auth' to authenticate"
+    fi
+
+    # Install Zsh plugins for new user
+    if [ "$INSTALL_ZSH" = "y" ]; then
+        ZSH_CUSTOM="$USER_HOME/.oh-my-zsh/custom"
+
+        # Install zsh-autosuggestions
+        if [ ! -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]; then
+            log_info "Installing zsh-autosuggestions for $NEW_USERNAME..."
+            su - "$NEW_USERNAME" -c "git clone https://github.com/zsh-users/zsh-autosuggestions $ZSH_CUSTOM/plugins/zsh-autosuggestions"
+            log_success "zsh-autosuggestions installed"
+        fi
+
+        # Install zsh-syntax-highlighting
+        if [ ! -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]; then
+            log_info "Installing zsh-syntax-highlighting for $NEW_USERNAME..."
+            su - "$NEW_USERNAME" -c "git clone https://github.com/zsh-users/zsh-syntax-highlighting.git $ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
+            log_success "zsh-syntax-highlighting installed"
+        fi
+    fi
+
+    # Log versions of installed tools
+    log_info "Logging installed tool versions..."
+    if [ "$INSTALL_NVM" = "y" ]; then
+        su - "$NEW_USERNAME" -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && node --version && npm --version' >> "$SETUP_INFO_FILE" 2>&1 || true
+    fi
+    if [ "$INSTALL_UV" = "y" ]; then
+        su - "$NEW_USERNAME" -c 'export PATH="$HOME/.local/bin:$PATH" && uv --version' >> "$SETUP_INFO_FILE" 2>&1 || true
+    fi
+    if [ "$INSTALL_CLAUDE" = "y" ]; then
+        su - "$NEW_USERNAME" -c 'export PATH="$HOME/.local/bin:$PATH" && claude --version' >> "$SETUP_INFO_FILE" 2>&1 || true
+    fi
+
+    log_success "User development environment configured for $NEW_USERNAME"
+
+    mark_step_complete "install_user_environment"
 }
 
 #####################################################
@@ -613,101 +612,153 @@ main() {
     update_system
     check_ssh_keys
 
-    # Phase 3: Create user first
+    # Phase 3: Create user early
     create_user
 
-    # Phase 4: Install selected components
+    # Phase 4: Install system packages and services (as root)
     [ "$INSTALL_TOOLS" = "y" ] && install_common_tools
     [ "$INSTALL_SECURITY" = "y" ] && install_security
-    [ "$INSTALL_ZSH" = "y" ] && install_zsh
-    [ "$INSTALL_UV" = "y" ] && install_uv_python
-    [ "$INSTALL_NVM" = "y" ] && install_nvm_node
+    [ "$INSTALL_ZSH" = "y" ] && install_zsh  # System package only
     [ "$INSTALL_DOCKER" = "y" ] && install_docker
     [ "$INSTALL_TAILSCALE" = "y" ] && install_tailscale
-    [ "$INSTALL_CLAUDE" = "y" ] && install_claude_code
     [ "$SETUP_SWAP" = "y" ] && setup_swap_space
-    [ "$INSTALL_DOTFILES" = "y" ] && install_dotfiles
 
-    # Phase 5: Final summary
+    # Phase 5: Install user development environment (as new user)
+    [ "$INSTALL_DOTFILES" = "y" ] && install_user_environment
+
+    # Phase 6: Final summary
     show_summary
+}
+
+generate_todo_content() {
+    local content=""
+
+    content+="========================================\n"
+    content+="VPS Setup - Next Steps & TODO List\n"
+    content+="========================================\n"
+    content+="Installation completed: $(date)\n"
+    content+="Server: $(hostname)\n"
+    content+="User: $NEW_USERNAME\n"
+    content+="========================================\n\n"
+
+    content+="=== INSTALLED COMPONENTS ===\n\n"
+    [ "$INSTALL_TOOLS" = "y" ] && content+="  ✓ Common development tools\n"
+    [ "$INSTALL_SECURITY" = "y" ] && content+="  ✓ UFW firewall and fail2ban\n"
+    [ "$INSTALL_ZSH" = "y" ] && content+="  ✓ Zsh + Oh My Zsh\n"
+    [ "$INSTALL_UV" = "y" ] && content+="  ✓ UV with Python 3.12\n"
+    [ "$INSTALL_NVM" = "y" ] && content+="  ✓ NVM with Node.js 22\n"
+    [ "$INSTALL_DOCKER" = "y" ] && content+="  ✓ Docker + Docker Compose\n"
+    [ "$INSTALL_TAILSCALE" = "y" ] && content+="  ✓ Tailscale VPN\n"
+    [ "$INSTALL_CLAUDE" = "y" ] && content+="  ✓ Claude Code CLI\n"
+    [ "$SETUP_SWAP" = "y" ] && content+="  ✓ Swap space (${SWAP_SIZE}GB)\n"
+    [ "$INSTALL_DOTFILES" = "y" ] && content+="  ✓ Dotfiles configuration\n"
+
+    content+="\n========================================\n"
+    content+="=== NEXT STEPS (IMPORTANT!) ===\n"
+    content+="========================================\n\n"
+    content+="*** CRITICAL: CHANGE YOUR PASSWORD IMMEDIATELY ***\n\n"
+    content+="1. Login with temporary credentials:\n"
+    content+="   ssh $NEW_USERNAME@your-server-ip\n"
+    content+="   Password: $NEW_USERNAME\n\n"
+    content+="2. Change your password immediately after login:\n"
+    content+="   passwd\n\n"
+    content+="3. Generate SSH keys for $NEW_USERNAME (for GitHub/GitLab):\n"
+    content+="   ssh-keygen -t ed25519 -C \"$GIT_USER_EMAIL\"\n"
+    content+="   cat ~/.ssh/id_ed25519.pub\n"
+    content+="   Then add the public key to GitHub/GitLab\n\n"
+
+    if [ "$INSTALL_TAILSCALE" = "y" ]; then
+        content+="4. Connect to Tailscale VPN:\n"
+        content+="   sudo tailscale up\n\n"
+    fi
+
+    if [ "$INSTALL_CLAUDE" = "y" ]; then
+        content+="5. Authenticate Claude Code:\n"
+        content+="   claude auth\n\n"
+    fi
+
+    content+="6. Consider SSH hardening (IMPORTANT):\n"
+    content+="   - Change SSH port from 22 to custom (e.g., 2222)\n"
+    content+="   - Set 'PermitRootLogin no' in /etc/ssh/sshd_config\n"
+    content+="   - Set 'PasswordAuthentication no' (after setting up SSH keys)\n\n"
+    content+="   Commands:\n"
+    content+="   sudo vim /etc/ssh/sshd_config\n"
+    content+="   sudo systemctl restart sshd\n\n"
+
+    if [ "$INSTALL_SECURITY" = "y" ]; then
+        content+="7. Update UFW if you changed SSH port:\n"
+        content+="   sudo ufw allow 2222/tcp\n"
+        content+="   sudo ufw delete allow 22/tcp\n\n"
+    fi
+
+    content+="8. Reboot the system to apply all changes:\n"
+    content+="   sudo reboot\n\n"
+
+    content+="========================================\n"
+    content+="=== IMPORTANT FILES ===\n"
+    content+="========================================\n\n"
+    content+="- Setup details: /root/vps-setup-info.txt\n"
+    content+="- This TODO list: ~/after_setup_todo.txt\n"
+    content+="- Dotfiles: ~/dotfiles\n"
+    content+="- Zsh config: ~/.zshrc -> ~/dotfiles/zsh/zshrc\n"
+    content+="- Git config: ~/.gitconfig -> ~/dotfiles/git/gitconfig\n\n"
+
+    if [ -f /root/.ssh/id_ed25519.pub ]; then
+        content+="========================================\n"
+        content+="=== SSH KEYS NOTE ===\n"
+        content+="========================================\n\n"
+        content+="Root SSH key was generated for system use.\n"
+        content+="Each user should generate their own SSH keys (see step 3 above).\n\n"
+        content+="Root public key location: /root/.ssh/id_ed25519.pub\n\n"
+    fi
+
+    content+="========================================\n"
+    content+="=== USEFUL ALIASES ===\n"
+    content+="========================================\n\n"
+    content+="Docker Compose:\n"
+    content+="  dc         - docker compose\n"
+    content+="  up         - docker compose up -d\n"
+    content+="  down       - docker compose down\n"
+    content+="  dlog       - docker compose logs -f --tail 300\n"
+    content+="  dcr        - docker compose down && docker compose up -d\n"
+    content+="  dcupdate   - docker compose up -d --no-deps --pull always\n\n"
+    content+="Claude Code:\n"
+    content+="  cc         - claude --dangerously-skip-permissions\n\n"
+    content+="Tmux:\n"
+    content+="  t          - tmux\n"
+    content+="  ta         - tmux attach\n"
+    content+="  tls        - tmux ls\n"
+    content+="  tn         - tmux new -s\n"
+    content+="  tat        - tmux attach -t\n\n"
+    content+="Git:\n"
+    content+="  st         - git status\n"
+    content+="  co         - git checkout\n"
+    content+="  cm         - git commit\n"
+    content+="  br         - git branch\n"
+    content+="  lg         - git log with graph\n"
+    content+="  pushf      - git push -f origin\n\n"
+    content+="========================================\n\n"
+    content+="You can delete this file once you've completed all steps:\n"
+    content+="  rm ~/after_setup_todo.txt\n\n"
+    content+="Enjoy your new VPS! 🚀\n\n"
+    content+="========================================\n"
+
+    echo "$content"
 }
 
 show_summary() {
     section_header "Installation Complete!"
 
-    echo -e "${GREEN} VPS setup completed successfully${NC}"
+    echo -e "${GREEN}✓ VPS setup completed successfully${NC}"
     echo ""
     echo "Installation details saved to: $SETUP_INFO_FILE"
     echo ""
 
-    echo -e "${YELLOW}=== Installed Components ===${NC}"
-    [ "$INSTALL_TOOLS" = "y" ] && echo "   Common development tools"
-    [ "$INSTALL_SECURITY" = "y" ] && echo "   UFW firewall and fail2ban"
-    [ "$INSTALL_ZSH" = "y" ] && echo "   Zsh + Oh My Zsh"
-    [ "$INSTALL_UV" = "y" ] && echo "   UV with Python 3.12"
-    [ "$INSTALL_NVM" = "y" ] && echo "   NVM with Node.js 22"
-    [ "$INSTALL_DOCKER" = "y" ] && echo "   Docker + Docker Compose"
-    [ "$INSTALL_TAILSCALE" = "y" ] && echo "   Tailscale VPN"
-    [ "$INSTALL_CLAUDE" = "y" ] && echo "   Claude Code CLI"
-    [ "$SETUP_SWAP" = "y" ] && echo "   Swap space (${SWAP_SIZE}GB)"
-    [ "$INSTALL_DOTFILES" = "y" ] && echo "   Dotfiles configuration"
-    echo ""
+    # Generate todo content once
+    TODO_CONTENT=$(generate_todo_content)
 
-    echo -e "${YELLOW}=== Next Steps ===${NC}"
-    echo ""
-    echo -e "${RED}*** IMPORTANT: CHANGE YOUR PASSWORD IMMEDIATELY ***${NC}"
-    echo "1. Login with temporary credentials:"
-    echo -e "   ${BLUE}ssh $NEW_USERNAME@your-server-ip${NC}"
-    echo -e "   ${YELLOW}Password: $NEW_USERNAME${NC}"
-    echo ""
-    echo "2. Change your password immediately after login:"
-    echo -e "   ${BLUE}passwd${NC}"
-    echo ""
-
-    echo "3. Generate SSH keys for $NEW_USERNAME (for GitHub/GitLab):"
-    echo -e "   ${BLUE}ssh-keygen -t ed25519 -C \"$GIT_USER_EMAIL\"${NC}"
-    echo -e "   ${BLUE}cat ~/.ssh/id_ed25519.pub${NC}"
-    echo "   Add the public key to GitHub/GitLab"
-    echo ""
-
-    if [ "$INSTALL_TAILSCALE" = "y" ]; then
-        echo "4. Connect to Tailscale VPN:"
-        echo -e "   ${BLUE}sudo tailscale up${NC}"
-        echo ""
-    fi
-
-    if [ "$INSTALL_CLAUDE" = "y" ]; then
-        echo "5. Authenticate Claude Code:"
-        echo -e "   ${BLUE}claude auth${NC}"
-        echo ""
-    fi
-
-    echo "6. Consider SSH hardening (IMPORTANT):"
-    echo "   - Change SSH port from 22 to custom (e.g., 2222)"
-    echo "   - Set 'PermitRootLogin no' in /etc/ssh/sshd_config"
-    echo "   - Set 'PasswordAuthentication no' (after setting up SSH keys)"
-    echo -e "   ${BLUE}sudo vim /etc/ssh/sshd_config${NC}"
-    echo -e "   ${BLUE}sudo systemctl restart sshd${NC}"
-    echo ""
-
-    if [ "$INSTALL_SECURITY" = "y" ]; then
-        echo "7. Update UFW if you changed SSH port:"
-        echo -e "   ${BLUE}sudo ufw allow 2222/tcp${NC}"
-        echo -e "   ${BLUE}sudo ufw delete allow 22/tcp${NC}"
-        echo ""
-    fi
-
-    echo "8. Reboot the system to apply all changes:"
-    echo -e "   ${BLUE}sudo reboot${NC}"
-    echo ""
-
-    if [ -f /root/.ssh/id_ed25519.pub ]; then
-        echo -e "${YELLOW}Note: Root SSH key was generated for system use.${NC}"
-        echo "Each user should generate their own SSH keys (see step 2 above)."
-        echo ""
-    fi
-
-    echo -e "${GREEN}Enjoy your new VPS! =�${NC}"
+    # Display to console with yellow color
+    echo -e "${YELLOW}$TODO_CONTENT${NC}"
 
     # Log summary
     echo "" >> "$SETUP_INFO_FILE"
@@ -715,6 +766,25 @@ show_summary() {
     echo "Installation completed at $(date)" >> "$SETUP_INFO_FILE"
     echo "User created: $NEW_USERNAME" >> "$SETUP_INFO_FILE"
     echo "========================================" >> "$SETUP_INFO_FILE"
+
+    # Create after_setup_todo.txt in user's home directory
+    USER_HOME="/home/$NEW_USERNAME"
+    TODO_FILE="$USER_HOME/after_setup_todo.txt"
+
+    log_info "Creating after setup todo list at $TODO_FILE..."
+
+
+    # Write the same content to file
+    echo "$TODO_CONTENT" > "$TODO_FILE"
+
+    # Set ownership to new user
+    chown "$NEW_USERNAME:$NEW_USERNAME" "$TODO_FILE"
+    chmod 644 "$TODO_FILE"
+
+    log_success "After setup todo list created at $TODO_FILE"
+    echo ""
+    echo -e "${GREEN}📝 A detailed todo list has been saved to: ${BLUE}$TODO_FILE${NC}"
+    echo -e "${YELLOW}   View it anytime with: ${BLUE}cat ~/after_setup_todo.txt${NC}"
 
     # Clean up state file on successful completion
     log_info "Cleaning up state file..."
