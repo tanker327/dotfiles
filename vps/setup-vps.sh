@@ -171,20 +171,8 @@ collect_user_inputs() {
     read -p "Configure swap space (recommended for low-memory VPS)? [Y/n]: " SETUP_SWAP </dev/tty
     SETUP_SWAP=${SETUP_SWAP:-y}
 
-    # Password configuration
-    echo ""
-    echo -e "${YELLOW}User Password Configuration:${NC}"
-    echo "1) Set password interactively (recommended for manual setup)"
-    echo "2) Generate random password (good for SSH key-only access)"
-    echo "3) Skip password setup (requires SSH keys, more secure)"
-    read -p "Choose password option [1/2/3]: " PASSWORD_OPTION </dev/tty
-    PASSWORD_OPTION=${PASSWORD_OPTION:-3}
-
-    if [ "$PASSWORD_OPTION" = "2" ]; then
-        # Generate a random password
-        USER_PASSWORD=$(openssl rand -base64 24)
-        echo -e "${GREEN}Random password generated and will be saved to setup info file${NC}"
-    fi
+    # Password configuration - will use username as initial password
+    log_info "Initial password will be set to username (must be changed after login)"
 
     if [ "$SETUP_SWAP" = "y" ]; then
         # Calculate recommended swap size based on RAM
@@ -254,8 +242,6 @@ INSTALL_CLAUDE="$INSTALL_CLAUDE"
 SETUP_SWAP="$SETUP_SWAP"
 SWAP_SIZE="$SWAP_SIZE"
 INSTALL_DOTFILES="$INSTALL_DOTFILES"
-PASSWORD_OPTION="$PASSWORD_OPTION"
-USER_PASSWORD="$USER_PASSWORD"
 EOF
     log_success "Configuration saved to $STATE_FILE"
 }
@@ -502,29 +488,16 @@ create_user() {
         log_info "Creating user $NEW_USERNAME..."
         adduser --gecos "" --disabled-password "$NEW_USERNAME"
 
-        # Handle password based on user choice
-        if [ "$PASSWORD_OPTION" = "1" ]; then
-            # Interactive password setup
-            log_info "Please set password for $NEW_USERNAME:"
-            passwd "$NEW_USERNAME"
-        elif [ "$PASSWORD_OPTION" = "2" ]; then
-            # Use generated random password
-            echo "$NEW_USERNAME:$USER_PASSWORD" | chpasswd
-            log_success "Random password set for $NEW_USERNAME"
-            echo "" >> "$SETUP_INFO_FILE"
-            echo "=== USER PASSWORD (SAVE THIS!) ===" >> "$SETUP_INFO_FILE"
-            echo "Username: $NEW_USERNAME" >> "$SETUP_INFO_FILE"
-            echo "Password: $USER_PASSWORD" >> "$SETUP_INFO_FILE"
-            echo "===================================" >> "$SETUP_INFO_FILE"
-            echo "" >> "$SETUP_INFO_FILE"
-            log_warning "Password saved to $SETUP_INFO_FILE - make sure to save it!"
-        else
-            # Skip password (SSH key only)
-            log_info "Skipping password setup - SSH key authentication will be used"
-            echo "" >> "$SETUP_INFO_FILE"
-            echo "User $NEW_USERNAME created without password (SSH key only)" >> "$SETUP_INFO_FILE"
-            echo "" >> "$SETUP_INFO_FILE"
-        fi
+        # Set password to username (temporary)
+        echo "$NEW_USERNAME:$NEW_USERNAME" | chpasswd
+        log_success "Temporary password set to username (must be changed after login)"
+
+        echo "" >> "$SETUP_INFO_FILE"
+        echo "=== USER ACCOUNT INFO ===" >> "$SETUP_INFO_FILE"
+        echo "Username: $NEW_USERNAME" >> "$SETUP_INFO_FILE"
+        echo "Initial Password: $NEW_USERNAME (MUST CHANGE AFTER FIRST LOGIN)" >> "$SETUP_INFO_FILE"
+        echo "=========================" >> "$SETUP_INFO_FILE"
+        echo "" >> "$SETUP_INFO_FILE"
 
         # Add to sudo group
         usermod -aG sudo "$NEW_USERNAME"
@@ -682,29 +655,34 @@ show_summary() {
 
     echo -e "${YELLOW}=== Next Steps ===${NC}"
     echo ""
-    echo "1. Switch to your new user account:"
-    echo -e "   ${BLUE}su - $NEW_USERNAME${NC}"
+    echo -e "${RED}*** IMPORTANT: CHANGE YOUR PASSWORD IMMEDIATELY ***${NC}"
+    echo "1. Login with temporary credentials:"
+    echo -e "   ${BLUE}ssh $NEW_USERNAME@your-server-ip${NC}"
+    echo -e "   ${YELLOW}Password: $NEW_USERNAME${NC}"
+    echo ""
+    echo "2. Change your password immediately after login:"
+    echo -e "   ${BLUE}passwd${NC}"
     echo ""
 
-    echo "2. Generate SSH keys for $NEW_USERNAME (for GitHub/GitLab):"
+    echo "3. Generate SSH keys for $NEW_USERNAME (for GitHub/GitLab):"
     echo -e "   ${BLUE}ssh-keygen -t ed25519 -C \"$GIT_USER_EMAIL\"${NC}"
     echo -e "   ${BLUE}cat ~/.ssh/id_ed25519.pub${NC}"
     echo "   Add the public key to GitHub/GitLab"
     echo ""
 
     if [ "$INSTALL_TAILSCALE" = "y" ]; then
-        echo "3. Connect to Tailscale VPN:"
+        echo "4. Connect to Tailscale VPN:"
         echo -e "   ${BLUE}sudo tailscale up${NC}"
         echo ""
     fi
 
     if [ "$INSTALL_CLAUDE" = "y" ]; then
-        echo "4. Authenticate Claude Code:"
+        echo "5. Authenticate Claude Code:"
         echo -e "   ${BLUE}claude auth${NC}"
         echo ""
     fi
 
-    echo "5. Consider SSH hardening (IMPORTANT):"
+    echo "6. Consider SSH hardening (IMPORTANT):"
     echo "   - Change SSH port from 22 to custom (e.g., 2222)"
     echo "   - Set 'PermitRootLogin no' in /etc/ssh/sshd_config"
     echo "   - Set 'PasswordAuthentication no' (after setting up SSH keys)"
@@ -713,13 +691,13 @@ show_summary() {
     echo ""
 
     if [ "$INSTALL_SECURITY" = "y" ]; then
-        echo "6. Update UFW if you changed SSH port:"
+        echo "7. Update UFW if you changed SSH port:"
         echo -e "   ${BLUE}sudo ufw allow 2222/tcp${NC}"
         echo -e "   ${BLUE}sudo ufw delete allow 22/tcp${NC}"
         echo ""
     fi
 
-    echo "7. Reboot the system to apply all changes:"
+    echo "8. Reboot the system to apply all changes:"
     echo -e "   ${BLUE}sudo reboot${NC}"
     echo ""
 
