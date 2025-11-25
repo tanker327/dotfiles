@@ -1,8 +1,9 @@
 #!/bin/bash
 
+VERSION="1.5.0"
+
 #####################################################
 # VPS Setup Script - Complete Server Configuration
-# version: 1.0.1
 #####################################################
 # Usage: curl -fsSL <your-url>/setup-vps.sh | sudo bash
 # Or: sudo bash setup-vps.sh
@@ -87,7 +88,7 @@ check_root() {
 #####################################################
 
 collect_user_inputs() {
-    section_header "VPS Setup Configuration"
+    section_header "VPS Setup Configuration (Version $VERSION)"
 
     echo -e "${GREEN}Welcome to the VPS Setup Script!${NC}"
     echo "This script will configure your server with selected components."
