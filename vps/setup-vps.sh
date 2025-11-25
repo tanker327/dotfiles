@@ -480,14 +480,7 @@ install_user_environment() {
 
     log_info "Applying dotfiles configurations..."
 
-    # Backup and symlink zshrc
-    if [ -f "$USER_HOME/.zshrc" ]; then
-        su - "$NEW_USERNAME" -c "mv -f $USER_HOME/.zshrc $BACKUP_DIR/.zshrc"
-    fi
-    su - "$NEW_USERNAME" -c "ln -sf $DOTFILES_DIR/zsh/zshrc $USER_HOME/.zshrc"
-    log_info "Symlinked .zshrc"
-
-    # Backup and symlink gitconfig
+    # Backup and symlink gitconfig first
     if [ -f "$USER_HOME/.gitconfig" ]; then
         su - "$NEW_USERNAME" -c "mv -f $USER_HOME/.gitconfig $BACKUP_DIR/.gitconfig"
     fi
@@ -497,6 +490,12 @@ install_user_environment() {
     # Symlink global gitignore
     su - "$NEW_USERNAME" -c "ln -sf $DOTFILES_DIR/git/gitignore_global $USER_HOME/.gitignore_global"
     log_info "Symlinked .gitignore_global"
+
+    # Symlink p10k config if it exists in dotfiles
+    if [ -f "$DOTFILES_DIR/zsh/p10k.zsh" ]; then
+        su - "$NEW_USERNAME" -c "ln -sf $DOTFILES_DIR/zsh/p10k.zsh $USER_HOME/.p10k.zsh"
+        log_info "Symlinked .p10k.zsh"
+    fi
 
     # Configure SSH authorized_keys
     if [ -f "$DOTFILES_DIR/vps/ssh-keys/authorized_keys" ]; then
@@ -530,6 +529,13 @@ install_user_environment() {
             su - "$NEW_USERNAME" -c "git clone --depth=1 https://github.com/romkatv/powerlevel10k.git $P10K_DIR"
             log_success "Powerlevel10k theme installed"
         fi
+
+        # NOW symlink zshrc AFTER Oh My Zsh is installed (so it doesn't get overwritten)
+        if [ -f "$USER_HOME/.zshrc" ]; then
+            su - "$NEW_USERNAME" -c "mv -f $USER_HOME/.zshrc $BACKUP_DIR/.zshrc.oh-my-zsh-default"
+        fi
+        su - "$NEW_USERNAME" -c "ln -sf $DOTFILES_DIR/zsh/zshrc $USER_HOME/.zshrc"
+        log_success "Symlinked .zshrc (after Oh My Zsh installation)"
     fi
 
     # Install NVM for new user
