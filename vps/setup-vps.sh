@@ -16,8 +16,9 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Log file
+# Log and state files
 SETUP_INFO_FILE="/root/vps-setup-info.txt"
+STATE_FILE="/root/.vps-setup-state"
 
 #####################################################
 # Utility Functions
@@ -50,6 +51,25 @@ section_header() {
     echo -e "${BLUE}========================================${NC}"
 }
 
+# State management functions
+mark_step_complete() {
+    echo "$1=done" >> "$STATE_FILE"
+    log_info "Step '$1' marked as complete"
+}
+
+is_step_complete() {
+    [ -f "$STATE_FILE" ] && grep -q "^$1=done$" "$STATE_FILE"
+}
+
+skip_if_complete() {
+    local step_name="$1"
+    if is_step_complete "$step_name"; then
+        log_info "Step '$step_name' already completed, skipping..."
+        return 0
+    fi
+    return 1
+}
+
 #####################################################
 # Pre-flight Checks
 #####################################################
@@ -71,6 +91,23 @@ collect_user_inputs() {
     echo -e "${GREEN}Welcome to the VPS Setup Script!${NC}"
     echo "This script will configure your server with selected components."
     echo ""
+
+    # Check if resuming from previous run
+    if [ -f "$STATE_FILE" ]; then
+        echo -e "${YELLOW}Previous installation detected!${NC}"
+        echo ""
+        read -p "Resume previous installation? (y/n): " RESUME_INSTALL </dev/tty
+        if [ "$RESUME_INSTALL" = "y" ]; then
+            log_info "Resuming previous installation..."
+            # Load previous configuration
+            source "$STATE_FILE"
+            return 0
+        else
+            log_warning "Starting fresh installation..."
+            rm -f "$STATE_FILE"
+        fi
+    fi
+
     echo "All configuration will be collected upfront, then installation"
     echo "will proceed without interruption."
     echo ""
@@ -82,14 +119,14 @@ collect_user_inputs() {
 
     # Collect new username
     while true; do
-        read -p "Enter username for new user account: " NEW_USERNAME
+        read -p "Enter username for new user account: " NEW_USERNAME </dev/tty
         if [ -z "$NEW_USERNAME" ]; then
             log_warning "Username cannot be empty"
             continue
         fi
         if id "$NEW_USERNAME" &>/dev/null; then
             log_warning "User $NEW_USERNAME already exists"
-            read -p "Continue with existing user? (y/n): " confirm
+            read -p "Continue with existing user? (y/n): " confirm </dev/tty
             if [ "$confirm" = "y" ]; then
                 break
             fi
@@ -99,40 +136,55 @@ collect_user_inputs() {
     done
 
     # Collect git configuration
-    read -p "Enter Git user name (e.g., 'Eric'): " GIT_USER_NAME
-    read -p "Enter Git email (e.g., 'your@email.com'): " GIT_USER_EMAIL
+    read -p "Enter Git user name (e.g., 'Eric'): " GIT_USER_NAME </dev/tty
+    read -p "Enter Git email (e.g., 'your@email.com'): " GIT_USER_EMAIL </dev/tty
 
     # Component selection
     echo ""
     echo -e "${YELLOW}Select components to install (y/n for each):${NC}"
     echo ""
 
-    read -p "Install common tools (curl, wget, git, vim, htop, unzip, tree, build-essential)? [Y/n]: " INSTALL_TOOLS
+    read -p "Install common tools (curl, wget, git, vim, htop, unzip, tree, build-essential)? [Y/n]: " INSTALL_TOOLS </dev/tty
     INSTALL_TOOLS=${INSTALL_TOOLS:-y}
 
-    read -p "Install security tools (UFW firewall + fail2ban)? [Y/n]: " INSTALL_SECURITY
+    read -p "Install security tools (UFW firewall + fail2ban)? [Y/n]: " INSTALL_SECURITY </dev/tty
     INSTALL_SECURITY=${INSTALL_SECURITY:-y}
 
-    read -p "Install Zsh + Oh My Zsh? [Y/n]: " INSTALL_ZSH
+    read -p "Install Zsh + Oh My Zsh? [Y/n]: " INSTALL_ZSH </dev/tty
     INSTALL_ZSH=${INSTALL_ZSH:-y}
 
-    read -p "Install UV (Python package manager) with Python 3.12? [Y/n]: " INSTALL_UV
+    read -p "Install UV (Python package manager) with Python 3.12? [Y/n]: " INSTALL_UV </dev/tty
     INSTALL_UV=${INSTALL_UV:-y}
 
-    read -p "Install NVM with Node.js 22? [Y/n]: " INSTALL_NVM
+    read -p "Install NVM with Node.js 22? [Y/n]: " INSTALL_NVM </dev/tty
     INSTALL_NVM=${INSTALL_NVM:-y}
 
-    read -p "Install Docker + Docker Compose? [Y/n]: " INSTALL_DOCKER
+    read -p "Install Docker + Docker Compose? [Y/n]: " INSTALL_DOCKER </dev/tty
     INSTALL_DOCKER=${INSTALL_DOCKER:-y}
 
-    read -p "Install Tailscale VPN? [Y/n]: " INSTALL_TAILSCALE
+    read -p "Install Tailscale VPN? [Y/n]: " INSTALL_TAILSCALE </dev/tty
     INSTALL_TAILSCALE=${INSTALL_TAILSCALE:-y}
 
-    read -p "Install Claude Code CLI? [Y/n]: " INSTALL_CLAUDE
+    read -p "Install Claude Code CLI? [Y/n]: " INSTALL_CLAUDE </dev/tty
     INSTALL_CLAUDE=${INSTALL_CLAUDE:-y}
 
-    read -p "Configure swap space (recommended for low-memory VPS)? [Y/n]: " SETUP_SWAP
+    read -p "Configure swap space (recommended for low-memory VPS)? [Y/n]: " SETUP_SWAP </dev/tty
     SETUP_SWAP=${SETUP_SWAP:-y}
+
+    # Password configuration
+    echo ""
+    echo -e "${YELLOW}User Password Configuration:${NC}"
+    echo "1) Set password interactively (recommended for manual setup)"
+    echo "2) Generate random password (good for SSH key-only access)"
+    echo "3) Skip password setup (requires SSH keys, more secure)"
+    read -p "Choose password option [1/2/3]: " PASSWORD_OPTION </dev/tty
+    PASSWORD_OPTION=${PASSWORD_OPTION:-3}
+
+    if [ "$PASSWORD_OPTION" = "2" ]; then
+        # Generate a random password
+        USER_PASSWORD=$(openssl rand -base64 24)
+        echo -e "${GREEN}Random password generated and will be saved to setup info file${NC}"
+    fi
 
     if [ "$SETUP_SWAP" = "y" ]; then
         # Calculate recommended swap size based on RAM
@@ -153,11 +205,11 @@ collect_user_inputs() {
         fi
 
         echo "Detected RAM: ${TOTAL_RAM_GB}GB"
-        read -p "Swap size in GB [recommended: ${RECOMMENDED_SWAP}]: " SWAP_SIZE
+        read -p "Swap size in GB [recommended: ${RECOMMENDED_SWAP}]: " SWAP_SIZE </dev/tty
         SWAP_SIZE=${SWAP_SIZE:-$RECOMMENDED_SWAP}
     fi
 
-    read -p "Clone and apply dotfiles from github.com/tanker327? [Y/n]: " INSTALL_DOTFILES
+    read -p "Clone and apply dotfiles from github.com/tanker327? [Y/n]: " INSTALL_DOTFILES </dev/tty
     INSTALL_DOTFILES=${INSTALL_DOTFILES:-y}
 
     # Summary of selections
@@ -179,11 +231,33 @@ collect_user_inputs() {
     [ "$INSTALL_DOTFILES" = "y" ] && echo "   Dotfiles configuration"
     echo ""
 
-    read -p "Proceed with installation? (y/n): " CONFIRM_INSTALL
+    read -p "Proceed with installation? (y/n): " CONFIRM_INSTALL </dev/tty
     if [ "$CONFIRM_INSTALL" != "y" ]; then
         log_warning "Installation cancelled by user"
         exit 0
     fi
+
+    # Save configuration to state file
+    cat > "$STATE_FILE" <<EOF
+# VPS Setup Configuration - $(date)
+NEW_USERNAME="$NEW_USERNAME"
+GIT_USER_NAME="$GIT_USER_NAME"
+GIT_USER_EMAIL="$GIT_USER_EMAIL"
+INSTALL_TOOLS="$INSTALL_TOOLS"
+INSTALL_SECURITY="$INSTALL_SECURITY"
+INSTALL_ZSH="$INSTALL_ZSH"
+INSTALL_UV="$INSTALL_UV"
+INSTALL_NVM="$INSTALL_NVM"
+INSTALL_DOCKER="$INSTALL_DOCKER"
+INSTALL_TAILSCALE="$INSTALL_TAILSCALE"
+INSTALL_CLAUDE="$INSTALL_CLAUDE"
+SETUP_SWAP="$SETUP_SWAP"
+SWAP_SIZE="$SWAP_SIZE"
+INSTALL_DOTFILES="$INSTALL_DOTFILES"
+PASSWORD_OPTION="$PASSWORD_OPTION"
+USER_PASSWORD="$USER_PASSWORD"
+EOF
+    log_success "Configuration saved to $STATE_FILE"
 }
 
 #####################################################
@@ -191,14 +265,20 @@ collect_user_inputs() {
 #####################################################
 
 update_system() {
+    skip_if_complete "update_system" && return 0
+
     section_header "System Update"
     log_info "Updating package lists and upgrading system..."
     apt update -y
     apt upgrade -y
     log_success "System updated successfully"
+
+    mark_step_complete "update_system"
 }
 
 check_ssh_keys() {
+    skip_if_complete "check_ssh_keys" && return 0
+
     section_header "SSH Key Check"
     if [ ! -f /root/.ssh/id_ed25519 ]; then
         log_info "Generating SSH key (ED25519)..."
@@ -212,16 +292,24 @@ check_ssh_keys() {
     else
         log_info "SSH key already exists"
     fi
+
+    mark_step_complete "check_ssh_keys"
 }
 
 install_common_tools() {
+    skip_if_complete "install_common_tools" && return 0
+
     section_header "Installing Common Tools"
     log_info "Installing curl, wget, git, vim, htop, unzip, tree, build-essential..."
     apt install -y curl wget git vim htop unzip tree build-essential net-tools locate openssh-server openssh-client
     log_success "Common tools installed"
+
+    mark_step_complete "install_common_tools"
 }
 
 install_security() {
+    skip_if_complete "install_security" && return 0
+
     section_header "Installing Security Tools"
 
     log_info "Installing UFW firewall..."
@@ -241,9 +329,13 @@ install_security() {
     systemctl enable fail2ban
     systemctl start fail2ban
     log_success "fail2ban installed and enabled"
+
+    mark_step_complete "install_security"
 }
 
 install_zsh() {
+    skip_if_complete "install_zsh" && return 0
+
     section_header "Installing Zsh + Oh My Zsh"
 
     log_info "Installing Zsh..."
@@ -261,9 +353,13 @@ install_zsh() {
     chsh -s $(which zsh) root
 
     log_success "Zsh configured"
+
+    mark_step_complete "install_zsh"
 }
 
 install_uv_python() {
+    skip_if_complete "install_uv_python" && return 0
+
     section_header "Installing UV (Python Package Manager)"
 
     log_info "Installing UV..."
@@ -280,9 +376,13 @@ install_uv_python() {
     else
         log_error "UV installation failed or not in PATH"
     fi
+
+    mark_step_complete "install_uv_python"
 }
 
 install_nvm_node() {
+    skip_if_complete "install_nvm_node" && return 0
+
     section_header "Installing NVM + Node.js 22"
 
     log_info "Installing NVM..."
@@ -303,9 +403,13 @@ install_nvm_node() {
     else
         log_error "NVM installation failed"
     fi
+
+    mark_step_complete "install_nvm_node"
 }
 
 install_docker() {
+    skip_if_complete "install_docker" && return 0
+
     section_header "Installing Docker + Docker Compose"
 
     log_info "Installing Docker prerequisites..."
@@ -333,9 +437,13 @@ install_docker() {
     log_success "Docker and Docker Compose installed"
     docker --version >> "$SETUP_INFO_FILE"
     docker compose version >> "$SETUP_INFO_FILE"
+
+    mark_step_complete "install_docker"
 }
 
 install_tailscale() {
+    skip_if_complete "install_tailscale" && return 0
+
     section_header "Installing Tailscale VPN"
 
     log_info "Installing Tailscale..."
@@ -343,9 +451,13 @@ install_tailscale() {
 
     log_success "Tailscale installed"
     log_info "Run 'sudo tailscale up' to connect to your Tailscale network"
+
+    mark_step_complete "install_tailscale"
 }
 
 install_claude_code() {
+    skip_if_complete "install_claude_code" && return 0
+
     section_header "Installing Claude Code CLI"
 
     log_info "Installing Claude Code..."
@@ -353,9 +465,13 @@ install_claude_code() {
 
     log_success "Claude Code installed"
     log_info "Run 'claude auth' to authenticate Claude Code"
+
+    mark_step_complete "install_claude_code"
 }
 
 setup_swap_space() {
+    skip_if_complete "setup_swap_space" && return 0
+
     section_header "Setting Up Swap Space"
 
     log_info "Creating ${SWAP_SIZE}GB swap file..."
@@ -371,9 +487,13 @@ setup_swap_space() {
 
     log_success "Swap space configured (${SWAP_SIZE}GB)"
     free -h >> "$SETUP_INFO_FILE"
+
+    mark_step_complete "setup_swap_space"
 }
 
 create_user() {
+    skip_if_complete "create_user" && return 0
+
     section_header "Creating User Account"
 
     if id "$NEW_USERNAME" &>/dev/null; then
@@ -382,9 +502,29 @@ create_user() {
         log_info "Creating user $NEW_USERNAME..."
         adduser --gecos "" --disabled-password "$NEW_USERNAME"
 
-        # Set password
-        echo "Please set password for $NEW_USERNAME:"
-        passwd "$NEW_USERNAME"
+        # Handle password based on user choice
+        if [ "$PASSWORD_OPTION" = "1" ]; then
+            # Interactive password setup
+            log_info "Please set password for $NEW_USERNAME:"
+            passwd "$NEW_USERNAME"
+        elif [ "$PASSWORD_OPTION" = "2" ]; then
+            # Use generated random password
+            echo "$NEW_USERNAME:$USER_PASSWORD" | chpasswd
+            log_success "Random password set for $NEW_USERNAME"
+            echo "" >> "$SETUP_INFO_FILE"
+            echo "=== USER PASSWORD (SAVE THIS!) ===" >> "$SETUP_INFO_FILE"
+            echo "Username: $NEW_USERNAME" >> "$SETUP_INFO_FILE"
+            echo "Password: $USER_PASSWORD" >> "$SETUP_INFO_FILE"
+            echo "===================================" >> "$SETUP_INFO_FILE"
+            echo "" >> "$SETUP_INFO_FILE"
+            log_warning "Password saved to $SETUP_INFO_FILE - make sure to save it!"
+        else
+            # Skip password (SSH key only)
+            log_info "Skipping password setup - SSH key authentication will be used"
+            echo "" >> "$SETUP_INFO_FILE"
+            echo "User $NEW_USERNAME created without password (SSH key only)" >> "$SETUP_INFO_FILE"
+            echo "" >> "$SETUP_INFO_FILE"
+        fi
 
         # Add to sudo group
         usermod -aG sudo "$NEW_USERNAME"
@@ -397,9 +537,13 @@ create_user() {
         usermod -aG docker "$NEW_USERNAME"
         log_info "Added $NEW_USERNAME to docker group"
     fi
+
+    mark_step_complete "create_user"
 }
 
 install_dotfiles() {
+    skip_if_complete "install_dotfiles" && return 0
+
     section_header "Installing Dotfiles Configuration"
 
     USER_HOME="/home/$NEW_USERNAME"
@@ -447,6 +591,20 @@ install_dotfiles() {
     su - "$NEW_USERNAME" -c "ln -sf $DOTFILES_DIR/git/gitignore_global $USER_HOME/.gitignore_global"
     log_info "Symlinked .gitignore_global"
 
+    # Configure SSH authorized_keys
+    if [ -f "$DOTFILES_DIR/vps/ssh-keys/authorized_keys" ]; then
+        log_info "Installing SSH authorized keys..."
+        SSH_DIR="$USER_HOME/.ssh"
+        su - "$NEW_USERNAME" -c "mkdir -p $SSH_DIR"
+        su - "$NEW_USERNAME" -c "chmod 700 $SSH_DIR"
+        su - "$NEW_USERNAME" -c "cp $DOTFILES_DIR/vps/ssh-keys/authorized_keys $SSH_DIR/authorized_keys"
+        su - "$NEW_USERNAME" -c "chmod 600 $SSH_DIR/authorized_keys"
+        log_success "SSH authorized keys installed"
+        echo "Authorized SSH keys installed from dotfiles" >> "$SETUP_INFO_FILE"
+    else
+        log_warning "No authorized_keys file found in dotfiles/vps/ssh-keys/"
+    fi
+
     # Change default shell to zsh for new user
     if [ "$INSTALL_ZSH" = "y" ]; then
         chsh -s $(which zsh) "$NEW_USERNAME"
@@ -460,6 +618,8 @@ install_dotfiles() {
     fi
 
     log_success "Dotfiles configured for $NEW_USERNAME"
+
+    mark_step_complete "install_dotfiles"
 }
 
 #####################################################
@@ -577,6 +737,11 @@ show_summary() {
     echo "Installation completed at $(date)" >> "$SETUP_INFO_FILE"
     echo "User created: $NEW_USERNAME" >> "$SETUP_INFO_FILE"
     echo "========================================" >> "$SETUP_INFO_FILE"
+
+    # Clean up state file on successful completion
+    log_info "Cleaning up state file..."
+    rm -f "$STATE_FILE"
+    log_success "Installation state cleaned up"
 }
 
 #####################################################
