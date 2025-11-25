@@ -1,29 +1,55 @@
+#####################################################
+# Development Environment Configuration
+#####################################################
+
+#####################################################
+# Environment Variables
+#####################################################
+
 PROJECT_FOLDER=$HOME/projects
 
-WORK_PROJECT_FOLDER=$HOME/projects/workflow
-
+#####################################################
+# Docker & Docker Compose Aliases
+#####################################################
 
 DOCKER_COMPOSE_COMMAND="docker compose"
 
+# Core Docker
 alias d="docker"
 alias dc="${DOCKER_COMPOSE_COMMAND}"
 
-alias dcr="dc down && dc up -d"
-alias dcps="dc ps"
-alias dcupdate="docker compose up -d --no-deps --pull always"
-
+# Docker Compose Operations
 alias up="dc up -d"
 alias down="dc down"
-
+alias dcps="dc ps"
 alias dlog="dc logs -f --tail 300"
+
+# Docker Compose Build & Rebuild
+alias dcb="dc up -d --build"
+alias dcr="dc down && dc up -d"
+alias dcrb="dc down && dcb"
+alias dcupdate="docker compose up -d --no-deps --pull always"
+
+#####################################################
+# Node.js / npm Aliases
+#####################################################
 
 alias npm-rebuild="rm -rf node_modules && npm i"
 
+#####################################################
+# tmux Aliases
+#####################################################
+
 alias t=tmux
-alias tn="tmux new -s"
 alias ta="tmux a"
-alias tat="tmux attch -t"
-alias tkt="tmux kill-session -t"
 alias tls="tmux ls"
+alias tn="tmux new -s"
+alias tat="tmux attach -t"
+alias tkt="tmux kill-session -t"
+alias tt="tmux -CC"
+
+#####################################################
+# Claude Code Aliases
+#####################################################
 
 alias cc="claude --dangerously-skip-permissions"

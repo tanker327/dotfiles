@@ -1,51 +1,114 @@
+#####################################################
+# Core Configuration
+#####################################################
+
 [core]
-	excludesfile = /Users/ericwu/.gitignore_global
+	excludesfile = ~/.gitignore_global
 	editor = /usr/bin/vim
 	pager = diff-so-fancy | less --tabs=4 -RFX
-[difftool "sourcetree"]
-	cmd = opendiff \"$LOCAL\" \"$REMOTE\"
-	path = 
-[mergetool "sourcetree"]
-	cmd = /Applications/Sourcetree.app/Contents/Resources/opendiff-w.sh \"$LOCAL\" \"$REMOTE\" -ancestor \"$BASE\" -merge \"$MERGED\"
-	trustExitCode = true
+
+#####################################################
+# User Configuration
+#####################################################
+
 [user]
 	name = Eric
 	email = tanker327@gmail.com
+
+#####################################################
+# Push/Pull Configuration
+#####################################################
+
 [push]
-	default = matching
+	default = current
+	autoSetupRemote = true
+
+[pull]
+	rebase = false
+
+[rebase]
+	autoStash = true
+
+[init]
+	defaultBranch = main
+#####################################################
+# Color Configuration
+#####################################################
+
 [color]
 	ui = true
+
+#####################################################
+# Git Aliases
+#####################################################
+
 [alias]
+	# Basic shortcuts
 	st = status
 	co = checkout
-	cm = commit 
+	cm = commit
 	br = branch
-	una = "reset HEAD"
-	unadd = "rest HEAD"
-	uncm = "reset --soft HEAD^"
-	uncommit = "reset --soft HEAD^"
-	last = "log -1"
-	lg = "log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit"
+	a = add
 	ad = add
-	a  = add
+	cp = cherry-pick
+
+	# Undo operations
+	una = reset HEAD
+	unadd = reset HEAD
+	uncm = reset --soft HEAD^
+	uncommit = reset --soft HEAD^
+
+	# Logs and history
+	last = log -1
+	lg = log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
 	hist = log --pretty=format:\"%h %ad | %s%d [%an]\" --graph --date=short
-	pushf = "push -f origin"
-	fpush =  pushf 
-	cp = "cherry-pick"
+
+	# Push operations
+	pushf = push -f origin
+	fpush = push -f origin
+
+#####################################################
+# Git LFS Configuration
+#####################################################
+
 [filter "lfs"]
 	clean = git-lfs clean -- %f
 	smudge = git-lfs smudge -- %f
 	required = true
 	process = git-lfs filter-process
+
+#####################################################
+# Commit Configuration
+#####################################################
+
 [commit]
-	template = /Users/ericwu/.stCommitMsg
+	template = ~/.stCommitMsg
+
+#####################################################
+# Diff & Merge Tool Configuration
+#####################################################
+
 [interactive]
 	diffFilter = diff-so-fancy --patch
+
+[difftool "sourcetree"]
+	cmd = opendiff \"$LOCAL\" \"$REMOTE\"
+	path =
+
+[mergetool "sourcetree"]
+	cmd = /Applications/Sourcetree.app/Contents/Resources/opendiff-w.sh \"$LOCAL\" \"$REMOTE\" -ancestor \"$BASE\" -merge \"$MERGED\"
+	trustExitCode = true
+
+#####################################################
+# diff-so-fancy Color Configuration
+#####################################################
+
 [color "diff-highlight"]
 	oldNormal = red bold
 	oldHighlight = red bold 52
 	newNormal = green bold
 	newHighlight = green bold 22
+
 [color "diff"]
 	meta = 11
 	frag = magenta bold
