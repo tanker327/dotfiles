@@ -775,9 +775,8 @@ show_summary() {
 
     log_info "Creating after setup todo list at $TODO_FILE..."
 
-
-    # Write the same content to file
-    echo "$TODO_CONTENT" > "$TODO_FILE"
+    # Write the same content to file (use -e to interpret escape sequences)
+    echo -e "$TODO_CONTENT" > "$TODO_FILE"
 
     # Set ownership to new user
     chown "$NEW_USERNAME:$NEW_USERNAME" "$TODO_FILE"
