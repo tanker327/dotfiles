@@ -2,6 +2,7 @@
 
 #####################################################
 # VPS Setup Script - Complete Server Configuration
+# version: 1.0.1
 #####################################################
 # Usage: curl -fsSL <your-url>/setup-vps.sh | sudo bash
 # Or: sudo bash setup-vps.sh
