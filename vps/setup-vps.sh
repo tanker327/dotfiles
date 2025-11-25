@@ -520,7 +520,15 @@ install_user_environment() {
         # Install Oh My Zsh for new user
         if [ ! -d "$USER_HOME/.oh-my-zsh" ]; then
             su - "$NEW_USERNAME" -c 'sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended'
-            log_info "Installed Oh My Zsh for $NEW_USERNAME"
+            log_success "Installed Oh My Zsh for $NEW_USERNAME"
+        fi
+
+        # Install Powerlevel10k theme
+        P10K_DIR="$USER_HOME/.oh-my-zsh/custom/themes/powerlevel10k"
+        if [ ! -d "$P10K_DIR" ]; then
+            log_info "Installing Powerlevel10k theme..."
+            su - "$NEW_USERNAME" -c "git clone --depth=1 https://github.com/romkatv/powerlevel10k.git $P10K_DIR"
+            log_success "Powerlevel10k theme installed"
         fi
     fi
 
@@ -664,22 +672,26 @@ generate_todo_content() {
     content+="   Password: $NEW_USERNAME\n\n"
     content+="2. Change your password immediately after login:\n"
     content+="   passwd\n\n"
-    content+="3. Generate SSH keys for $NEW_USERNAME (for GitHub/GitLab):\n"
+    content+="3. Configure Powerlevel10k prompt (first login will trigger setup):\n"
+    content+="   The configuration wizard will start automatically\n"
+    content+="   Recommended: Enable transient prompt for clean history\n"
+    content+="   To reconfigure later: p10k configure\n\n"
+    content+="4. Generate SSH keys for $NEW_USERNAME (for GitHub/GitLab):\n"
     content+="   ssh-keygen -t ed25519 -C \"$GIT_USER_EMAIL\"\n"
     content+="   cat ~/.ssh/id_ed25519.pub\n"
     content+="   Then add the public key to GitHub/GitLab\n\n"
 
     if [ "$INSTALL_TAILSCALE" = "y" ]; then
-        content+="4. Connect to Tailscale VPN:\n"
+        content+="5. Connect to Tailscale VPN:\n"
         content+="   sudo tailscale up\n\n"
     fi
 
     if [ "$INSTALL_CLAUDE" = "y" ]; then
-        content+="5. Authenticate Claude Code:\n"
+        content+="6. Authenticate Claude Code:\n"
         content+="   claude auth\n\n"
     fi
 
-    content+="6. Consider SSH hardening (IMPORTANT):\n"
+    content+="7. Consider SSH hardening (IMPORTANT):\n"
     content+="   - Change SSH port from 22 to custom (e.g., 2222)\n"
     content+="   - Set 'PermitRootLogin no' in /etc/ssh/sshd_config\n"
     content+="   - Set 'PasswordAuthentication no' (after setting up SSH keys)\n\n"
@@ -688,12 +700,12 @@ generate_todo_content() {
     content+="   sudo systemctl restart sshd\n\n"
 
     if [ "$INSTALL_SECURITY" = "y" ]; then
-        content+="7. Update UFW if you changed SSH port:\n"
+        content+="8. Update UFW if you changed SSH port:\n"
         content+="   sudo ufw allow 2222/tcp\n"
         content+="   sudo ufw delete allow 22/tcp\n\n"
     fi
 
-    content+="8. Reboot the system to apply all changes:\n"
+    content+="9. Reboot the system to apply all changes:\n"
     content+="   sudo reboot\n\n"
 
     content+="========================================\n"
