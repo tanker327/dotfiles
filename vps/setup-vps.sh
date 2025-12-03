@@ -87,6 +87,26 @@ check_root() {
 # Input Collection Phase
 #####################################################
 
+validate_existing_user() {
+    local username="$1"
+
+    # Check if user exists
+    if ! id "$username" &>/dev/null; then
+        log_error "User '$username' does not exist on this system"
+        log_error "Please create the user first or choose to create a new user"
+        exit 1
+    fi
+
+    # Check if user is in sudo group
+    if ! groups "$username" | grep -q '\bsudo\b'; then
+        log_error "User '$username' is not in the sudo group"
+        log_error "Please add user to sudo group first: usermod -aG sudo $username"
+        exit 1
+    fi
+
+    log_success "User '$username' validated (exists and has sudo privileges)"
+}
+
 collect_user_inputs() {
     section_header "VPS Setup Configuration (Version $VERSION)"
 
@@ -119,23 +139,50 @@ collect_user_inputs() {
     echo "========================================" >> "$SETUP_INFO_FILE"
     echo "" >> "$SETUP_INFO_FILE"
 
-    # Collect new username
-    while true; do
-        read -p "Enter username for new user account: " NEW_USERNAME </dev/tty
-        if [ -z "$NEW_USERNAME" ]; then
-            log_warning "Username cannot be empty"
-            continue
+    # Ask if user wants to create new user or use existing
+    echo ""
+    read -p "Use existing user instead of creating new one? (y/n) [N]: " USE_EXISTING_USER </dev/tty
+    USE_EXISTING_USER=${USE_EXISTING_USER:-n}
+
+    if [ "$USE_EXISTING_USER" = "y" ]; then
+        CREATE_NEW_USER="n"
+
+        # Auto-detect from SUDO_USER
+        if [ -z "$SUDO_USER" ] || [ "$SUDO_USER" = "root" ]; then
+            log_error "Cannot detect non-root user from environment"
+            log_error "This script must be run with 'sudo' by a non-root user"
+            log_error "Example: sudo bash setup-vps.sh"
+            log_error ""
+            log_error "Installing development environment for root is not supported for security reasons"
+            exit 1
         fi
-        if id "$NEW_USERNAME" &>/dev/null; then
-            log_warning "User $NEW_USERNAME already exists"
-            read -p "Continue with existing user? (y/n): " confirm </dev/tty
-            if [ "$confirm" = "y" ]; then
+
+        NEW_USERNAME="$SUDO_USER"
+        log_info "Detected user: $NEW_USERNAME"
+
+        # Validate the existing user
+        validate_existing_user "$NEW_USERNAME"
+    else
+        CREATE_NEW_USER="y"
+
+        # Collect new username
+        while true; do
+            read -p "Enter username for new user account: " NEW_USERNAME </dev/tty
+            if [ -z "$NEW_USERNAME" ]; then
+                log_warning "Username cannot be empty"
+                continue
+            fi
+            if id "$NEW_USERNAME" &>/dev/null; then
+                log_warning "User $NEW_USERNAME already exists"
+                read -p "Continue with existing user? (y/n): " confirm </dev/tty
+                if [ "$confirm" = "y" ]; then
+                    break
+                fi
+            else
                 break
             fi
-        else
-            break
-        fi
-    done
+        done
+    fi
 
     # Collect git configuration
     read -p "Enter Git user name (e.g., 'Eric'): " GIT_USER_NAME </dev/tty
@@ -231,6 +278,7 @@ collect_user_inputs() {
     cat > "$STATE_FILE" <<EOF
 # VPS Setup Configuration - $(date)
 NEW_USERNAME="$NEW_USERNAME"
+CREATE_NEW_USER="$CREATE_NEW_USER"
 GIT_USER_NAME="$GIT_USER_NAME"
 GIT_USER_EMAIL="$GIT_USER_EMAIL"
 INSTALL_TOOLS="$INSTALL_TOOLS"
@@ -290,7 +338,10 @@ install_common_tools() {
     section_header "Installing Common Tools"
     log_info "Installing curl, wget, git, vim, htop, unzip, tree, build-essential..."
     apt install -y curl wget git vim htop unzip tree build-essential net-tools locate openssh-server openssh-client
-    log_success "Common tools installed"
+
+    log_info "Installing diff-so-fancy for better git diffs..."
+    apt install -y diff-so-fancy
+    log_success "Common tools installed (including diff-so-fancy)"
 
     mark_step_complete "install_common_tools"
 }
@@ -412,6 +463,25 @@ create_user() {
 
     section_header "Creating User Account"
 
+    # Skip user creation if using existing user
+    if [ "$CREATE_NEW_USER" = "n" ]; then
+        log_info "Skipping user creation (using existing user: $NEW_USERNAME)"
+
+        # Add to docker group if docker is installed and user not already in group
+        if command -v docker &> /dev/null; then
+            if ! groups "$NEW_USERNAME" | grep -q '\bdocker\b'; then
+                usermod -aG docker "$NEW_USERNAME"
+                log_info "Added $NEW_USERNAME to docker group"
+            else
+                log_info "User $NEW_USERNAME already in docker group"
+            fi
+        fi
+
+        mark_step_complete "create_user"
+        return 0
+    fi
+
+    # Original user creation logic for new users
     if id "$NEW_USERNAME" &>/dev/null; then
         log_info "User $NEW_USERNAME already exists, skipping creation"
     else
@@ -449,7 +519,14 @@ install_user_environment() {
 
     section_header "Setting Up User Development Environment"
 
-    USER_HOME="/home/$NEW_USERNAME"
+    # Dynamically detect user home directory
+    USER_HOME=$(getent passwd "$NEW_USERNAME" | cut -d: -f6)
+    if [ -z "$USER_HOME" ]; then
+        log_error "Could not determine home directory for user $NEW_USERNAME"
+        return 1
+    fi
+    log_info "Using home directory: $USER_HOME"
+
     DOTFILES_DIR="$USER_HOME/dotfiles"
 
     log_info "Cloning dotfiles repository..."
@@ -672,46 +749,61 @@ generate_todo_content() {
     content+="\n========================================\n"
     content+="=== NEXT STEPS (IMPORTANT!) ===\n"
     content+="========================================\n\n"
-    content+="*** CRITICAL: CHANGE YOUR PASSWORD IMMEDIATELY ***\n\n"
-    content+="1. Login with temporary credentials:\n"
-    content+="   ssh $NEW_USERNAME@your-server-ip\n"
-    content+="   Password: $NEW_USERNAME\n\n"
-    content+="2. Change your password immediately after login:\n"
-    content+="   passwd\n\n"
-    content+="3. Configure Powerlevel10k prompt (first login will trigger setup):\n"
+
+    local step=1
+
+    if [ "$CREATE_NEW_USER" = "y" ]; then
+        content+="*** CRITICAL: CHANGE YOUR PASSWORD IMMEDIATELY ***\n\n"
+        content+="$step. Login with temporary credentials:\n"
+        content+="   ssh $NEW_USERNAME@your-server-ip\n"
+        content+="   Password: $NEW_USERNAME\n\n"
+        step=$((step + 1))
+        content+="$step. Change your password immediately after login:\n"
+        content+="   passwd\n\n"
+        step=$((step + 1))
+    fi
+
+    content+="$step. Configure Powerlevel10k prompt (first login will trigger setup):\n"
     content+="   The configuration wizard will start automatically\n"
     content+="   Recommended: Enable transient prompt for clean history\n"
     content+="   To reconfigure later: p10k configure\n\n"
-    content+="4. Generate SSH keys for $NEW_USERNAME (for GitHub/GitLab):\n"
+    step=$((step + 1))
+
+    content+="$step. Generate SSH keys for $NEW_USERNAME (for GitHub/GitLab):\n"
     content+="   ssh-keygen -t ed25519 -C \"$GIT_USER_EMAIL\"\n"
     content+="   cat ~/.ssh/id_ed25519.pub\n"
     content+="   Then add the public key to GitHub/GitLab\n\n"
+    step=$((step + 1))
 
     if [ "$INSTALL_TAILSCALE" = "y" ]; then
-        content+="5. Connect to Tailscale VPN:\n"
+        content+="$step. Connect to Tailscale VPN:\n"
         content+="   sudo tailscale up\n\n"
+        step=$((step + 1))
     fi
 
     if [ "$INSTALL_CLAUDE" = "y" ]; then
-        content+="6. Authenticate Claude Code:\n"
+        content+="$step. Authenticate Claude Code:\n"
         content+="   claude auth\n\n"
+        step=$((step + 1))
     fi
 
-    content+="7. Consider SSH hardening (IMPORTANT):\n"
+    content+="$step. Consider SSH hardening (IMPORTANT):\n"
     content+="   - Change SSH port from 22 to custom (e.g., 2222)\n"
     content+="   - Set 'PermitRootLogin no' in /etc/ssh/sshd_config\n"
     content+="   - Set 'PasswordAuthentication no' (after setting up SSH keys)\n\n"
     content+="   Commands:\n"
     content+="   sudo vim /etc/ssh/sshd_config\n"
     content+="   sudo systemctl restart sshd\n\n"
+    step=$((step + 1))
 
     if [ "$INSTALL_SECURITY" = "y" ]; then
-        content+="8. Update UFW if you changed SSH port:\n"
+        content+="$step. Update UFW if you changed SSH port:\n"
         content+="   sudo ufw allow 2222/tcp\n"
         content+="   sudo ufw delete allow 22/tcp\n\n"
+        step=$((step + 1))
     fi
 
-    content+="9. Reboot the system to apply all changes:\n"
+    content+="$step. Reboot the system to apply all changes:\n"
     content+="   sudo reboot\n\n"
 
     content+="========================================\n"
