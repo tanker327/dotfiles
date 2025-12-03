@@ -336,8 +336,8 @@ install_common_tools() {
     skip_if_complete "install_common_tools" && return 0
 
     section_header "Installing Common Tools"
-    log_info "Installing curl, wget, git, vim, htop, unzip, tree, build-essential..."
-    apt install -y curl wget git vim htop unzip tree build-essential net-tools locate openssh-server openssh-client
+    log_info "Installing curl, wget, git, vim, htop, btop, unzip, tree, build-essential..."
+    apt install -y curl wget git vim htop btop unzip tree build-essential net-tools locate openssh-server openssh-client
     log_success "Common tools installed"
 
     mark_step_complete "install_common_tools"
