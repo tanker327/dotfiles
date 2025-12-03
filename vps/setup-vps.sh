@@ -338,10 +338,7 @@ install_common_tools() {
     section_header "Installing Common Tools"
     log_info "Installing curl, wget, git, vim, htop, unzip, tree, build-essential..."
     apt install -y curl wget git vim htop unzip tree build-essential net-tools locate openssh-server openssh-client
-
-    log_info "Installing diff-so-fancy for better git diffs..."
-    apt install -y diff-so-fancy
-    log_success "Common tools installed (including diff-so-fancy)"
+    log_success "Common tools installed"
 
     mark_step_complete "install_common_tools"
 }
@@ -649,6 +646,13 @@ install_user_environment() {
         su - "$NEW_USERNAME" -c 'curl -fsSL https://installs.claude.ai/install.sh | sh'
         log_success "Claude Code installed for $NEW_USERNAME"
         log_info "User should run 'claude auth' to authenticate"
+    fi
+
+    # Install diff-so-fancy via npm if NVM is installed
+    if [ "$INSTALL_NVM" = "y" ]; then
+        log_info "Installing diff-so-fancy for $NEW_USERNAME..."
+        su - "$NEW_USERNAME" -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && npm install -g diff-so-fancy' 2>&1 | tee -a "$SETUP_INFO_FILE" || log_warning "Failed to install diff-so-fancy"
+        log_success "diff-so-fancy installed globally via npm"
     fi
 
     # Install Zsh plugins for new user
