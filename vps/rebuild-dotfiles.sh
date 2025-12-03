@@ -201,5 +201,13 @@ if [ ! -f "$HOME/.p10k.zsh" ] || [ ! -f "$DOTFILES_DIR/zsh/p10k.zsh" ]; then
     echo "4. Configure Powerlevel10k: p10k configure"
 fi
 echo ""
+
+# Check if diff-so-fancy is installed
+if ! command -v diff-so-fancy &> /dev/null; then
+    echo -e "${YELLOW}Optional: Install diff-so-fancy for better git diffs${NC}"
+    echo "  sudo apt install -y diff-so-fancy"
+    echo ""
+fi
+
 echo -e "${BLUE}Backups saved to: $BACKUP_DIR${NC}"
 echo ""
