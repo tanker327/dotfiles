@@ -11,11 +11,19 @@ fi
 
 echo "Starting Template Preparation..."
 echo "WARNING: This will clean sensitive data and prepare VM for templating"
-read -p "Continue? (y/N) " -n 1 -r
-echo
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "Aborted."
-    exit 0
+
+# Check if running in a pipe (non-interactive)
+if [ -t 0 ]; then
+    read -p "Continue? (y/N) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Aborted."
+        exit 0
+    fi
+else
+    echo "Running in non-interactive mode (piped from curl)"
+    echo "Proceeding automatically in 5 seconds... Press Ctrl+C to cancel"
+    sleep 5
 fi
 
 # 1. Update the System
@@ -96,12 +104,17 @@ echo "Cloud-init has been reset and configured for Proxmox."
 echo "======================================================="
 
 # Optional shutdown
-read -p "Shutdown now to convert to template? (y/N) " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo "Shutting down in 5 seconds..."
-    sleep 5
-    shutdown -h now
+if [ -t 0 ]; then
+    read -p "Shutdown now to convert to template? (y/N) " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo "Shutting down in 5 seconds..."
+        sleep 5
+        shutdown -h now
+    else
+        echo "Please manually shut down the VM when ready to convert to template."
+    fi
 else
+    echo "Running in non-interactive mode - NOT shutting down automatically."
     echo "Please manually shut down the VM when ready to convert to template."
 fi
