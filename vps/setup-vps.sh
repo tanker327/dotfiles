@@ -585,6 +585,26 @@ install_user_environment() {
         log_warning "No authorized_keys file found in dotfiles/vps/ssh-keys/"
     fi
 
+    # Generate SSH key for user (for GitHub/GitLab access)
+    SSH_DIR="$USER_HOME/.ssh"
+    su - "$NEW_USERNAME" -c "mkdir -p $SSH_DIR"
+    if [ ! -f "$SSH_DIR/id_ed25519" ]; then
+        log_info "Generating SSH key for $NEW_USERNAME (for GitHub/GitLab)..."
+        su - "$NEW_USERNAME" -c "ssh-keygen -t ed25519 -C '$GIT_USER_EMAIL' -f $SSH_DIR/id_ed25519 -N ''"
+        log_success "SSH key generated at $SSH_DIR/id_ed25519"
+
+        # Log public key to setup info file
+        echo "" >> "$SETUP_INFO_FILE"
+        echo "=== USER SSH PUBLIC KEY ($NEW_USERNAME) ===" >> "$SETUP_INFO_FILE"
+        su - "$NEW_USERNAME" -c "cat $SSH_DIR/id_ed25519.pub" >> "$SETUP_INFO_FILE"
+        echo "========================================" >> "$SETUP_INFO_FILE"
+        echo "" >> "$SETUP_INFO_FILE"
+
+        log_info "Public key saved to $SETUP_INFO_FILE"
+    else
+        log_info "SSH key already exists for $NEW_USERNAME"
+    fi
+
     # Change default shell to zsh for new user
     if [ "$INSTALL_ZSH" = "y" ]; then
         chsh -s $(which zsh) "$NEW_USERNAME"
@@ -773,10 +793,12 @@ generate_todo_content() {
     content+="   To reconfigure later: p10k configure\n\n"
     step=$((step + 1))
 
-    content+="$step. Generate SSH keys for $NEW_USERNAME (for GitHub/GitLab):\n"
-    content+="   ssh-keygen -t ed25519 -C \"$GIT_USER_EMAIL\"\n"
-    content+="   cat ~/.ssh/id_ed25519.pub\n"
-    content+="   Then add the public key to GitHub/GitLab\n\n"
+    content+="$step. Add your SSH public key to GitHub/GitLab:\n"
+    content+="   Your SSH key was auto-generated during setup\n"
+    content+="   View it with: cat ~/.ssh/id_ed25519.pub\n"
+    content+="   Then add it to:\n"
+    content+="   - GitHub: https://github.com/settings/keys\n"
+    content+="   - GitLab: https://gitlab.com/-/profile/keys\n\n"
     step=$((step + 1))
 
     if [ "$INSTALL_TAILSCALE" = "y" ]; then
