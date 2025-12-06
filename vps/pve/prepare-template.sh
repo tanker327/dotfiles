@@ -53,6 +53,26 @@ fi
 
 systemctl enable qemu-guest-agent
 
+# 2b. Disable Predictable Network Interface Names
+echo "--- Disabling Predictable Network Interface Names ---"
+# This ensures network interfaces are always named eth0, eth1, etc.
+# instead of ens18, ens19, etc. (which depend on PCI slot)
+# This provides consistent naming across VM templates and clones
+if grep -q 'GRUB_CMDLINE_LINUX=' /etc/default/grub; then
+    # Check if net.ifnames is already set
+    if ! grep -q 'net.ifnames=0' /etc/default/grub; then
+        sed -i 's/GRUB_CMDLINE_LINUX="\(.*\)"/GRUB_CMDLINE_LINUX="\1 net.ifnames=0 biosdevname=0"/' /etc/default/grub
+        # Clean up any double spaces
+        sed -i 's/GRUB_CMDLINE_LINUX=" /GRUB_CMDLINE_LINUX="/' /etc/default/grub
+        update-grub
+        echo "Predictable network names disabled (will take effect after reboot)"
+    else
+        echo "Predictable network names already disabled"
+    fi
+else
+    echo "WARNING: Could not find GRUB_CMDLINE_LINUX in /etc/default/grub"
+fi
+
 # 3. Clean Package Cache
 echo "--- Cleaning APT Cache ---"
 apt clean
@@ -82,6 +102,7 @@ EOF
 
 # 6b. Configure Cloud-Init Network to Fix DNS on Primary Interface
 echo "--- Configuring Cloud-Init Network DNS Fix ---"
+echo "NOTE: Network interface will be eth0 (predictable names disabled)"
 
 # OS-specific network renderer configuration
 if [[ "$ID" == "debian" ]]; then
@@ -92,11 +113,6 @@ network:
   config:
     - type: physical
       name: eth0
-      subnets:
-        - type: dhcp
-          dns_nameservers: [8.8.8.8, 1.1.1.1]
-    - type: physical
-      name: ens18
       subnets:
         - type: dhcp
           dns_nameservers: [8.8.8.8, 1.1.1.1]
@@ -116,12 +132,6 @@ network:
   version: 2
   ethernets:
     eth0:
-      dhcp4: true
-      dhcp4-overrides:
-        use-dns: true
-      nameservers:
-        addresses: [8.8.8.8, 1.1.1.1]
-    ens18:
       dhcp4: true
       dhcp4-overrides:
         use-dns: true
@@ -184,6 +194,7 @@ echo "======================================================="
 echo "Template preparation complete!"
 echo "The Machine ID and SSH keys have been wiped."
 echo "OS-specific network fixes applied."
+echo "Predictable network names disabled (eth0 naming)."
 echo "======================================================="
 
 # Optional shutdown
