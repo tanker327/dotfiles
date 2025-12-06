@@ -100,24 +100,14 @@ cat > /etc/cloud/cloud.cfg.d/99-pve.cfg << EOF
 datasource_list: [ NoCloud, ConfigDrive, None ]
 EOF
 
-# 6b. Configure Cloud-Init Network to Fix DNS on Primary Interface
-echo "--- Configuring Cloud-Init Network DNS Fix ---"
+# 6b. Configure Cloud-Init Network Renderer
+echo "--- Configuring Cloud-Init Network Renderer ---"
 echo "NOTE: Network interface will be eth0 (predictable names disabled)"
+echo "NOTE: Network configuration (IP, DNS, etc.) should be set in Proxmox Cloud-Init tab"
 
 # OS-specific network renderer configuration
 if [[ "$ID" == "debian" ]]; then
     # Debian: Use ENI (ifupdown) renderer to work with /etc/network/interfaces
-    cat > /etc/cloud/cloud.cfg.d/50-curtin-networking.cfg << 'EOF'
-network:
-  version: 1
-  config:
-    - type: physical
-      name: eth0
-      subnets:
-        - type: dhcp
-          dns_nameservers: [8.8.8.8, 1.1.1.1]
-EOF
-
     # Configure cloud-init to use ENI renderer for Debian
     cat > /etc/cloud/cloud.cfg.d/01-network-renderer.cfg << 'EOF'
 system_info:
@@ -125,20 +115,15 @@ system_info:
     renderers: ['eni']
 EOF
 
+    echo "Debian: ENI renderer configured. Network settings will come from Proxmox Cloud-Init."
 else
-    # Ubuntu: Use netplan renderer (version 2)
-    cat > /etc/cloud/cloud.cfg.d/50-curtin-networking.cfg << 'EOF'
-network:
-  version: 2
-  ethernets:
-    eth0:
-      dhcp4: true
-      dhcp4-overrides:
-        use-dns: true
-      nameservers:
-        addresses: [8.8.8.8, 1.1.1.1]
-EOF
+    # Ubuntu: Use netplan renderer (default, no config needed)
+    echo "Ubuntu: Netplan renderer (default). Network settings will come from Proxmox Cloud-Init."
 fi
+
+# Remove any existing hardcoded network config that would override Proxmox settings
+rm -f /etc/cloud/cloud.cfg.d/50-curtin-networking.cfg
+echo "Removed hardcoded network config - Proxmox Cloud-Init will control network settings"
 
 # 7. Remove Persistent Network Rules
 echo "--- Removing Persistent Network Rules ---"
