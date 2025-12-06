@@ -30,9 +30,27 @@ fi
 echo "--- Updating System Packages ---"
 apt update && apt upgrade -y
 
-# 2. Install Essential Tools
+# 2. Install Essential Tools & Apply OS-Specific Fixes
 echo "--- Installing Cloud-Init and QEMU Guest Agent ---"
 apt install -y cloud-init qemu-guest-agent
+
+# Detect OS
+source /etc/os-release
+if [[ "$ID" == "debian" ]]; then
+    echo "--- Debian Detected: Installing resolvconf for Static IP DNS fix ---"
+    # Debian needs these to handle Cloud-Init networking correctly without Netplan
+    apt install -y resolvconf ifupdown
+    
+    # SAFETY NET: Ensure /etc/network/interfaces exists so ifupdown doesn't crash
+    touch /etc/network/interfaces
+    
+    systemctl enable resolvconf
+elif [[ "$ID" == "ubuntu" ]]; then
+    echo "--- Ubuntu Detected: Skipping resolvconf (relies on Netplan/systemd-resolved) ---"
+else
+    echo "--- Unknown OS: $ID. Proceeding with standard tools only ---"
+fi
+
 systemctl enable qemu-guest-agent
 
 # 3. Clean Package Cache
@@ -57,7 +75,6 @@ ln -s /etc/machine-id /var/lib/dbus/machine-id
 
 # 6. Configure Cloud-Init Datasource (Speed Up Boot)
 echo "--- Configuring Cloud-Init Datasource ---"
-# This prevents the VM from waiting for AWS/Azure/GCP metadata servers
 mkdir -p /etc/cloud/cloud.cfg.d
 cat > /etc/cloud/cloud.cfg.d/99-pve.cfg << EOF
 datasource_list: [ NoCloud, ConfigDrive, None ]
@@ -68,14 +85,22 @@ echo "--- Removing Persistent Network Rules ---"
 rm -f /etc/udev/rules.d/70-persistent-net.rules
 rm -f /etc/udev/rules.d/75-persistent-net-generator.rules
 
-# 8. Clean Network Config (Netplan)
+# 8. Clean Network Config (OPTIMIZED)
 echo "--- Cleaning Network Config ---"
-# Removes installer network config so Cloud-Init takes over
-rm -f /etc/netplan/*
+
+if [[ "$ID" == "debian" ]]; then
+    # On Debian, we force /etc/network/interfaces.
+    # We PURGE netplan so Cloud-Init doesn't try to use it again.
+    apt purge -y netplan.io || true
+    rm -rf /etc/netplan
+else
+    # On Ubuntu, we just remove the yaml files so they are regenerated on boot.
+    # We use a wildcard to be sure we get everything.
+    rm -f /etc/netplan/*.yaml
+fi
 
 # 9. Remove SSH Host Keys (Critical)
 echo "--- Removing SSH Host Keys ---"
-# WARNING: If you disconnect SSH after this step, you cannot log back in until a reboot/regeneration!
 rm -f /etc/ssh/ssh_host_*
 
 # 10. Reset Cloud-Init
@@ -100,7 +125,7 @@ rm -f /home/*/.bash_history
 echo "======================================================="
 echo "Template preparation complete!"
 echo "The Machine ID and SSH keys have been wiped."
-echo "Cloud-init has been reset and configured for Proxmox."
+echo "OS-specific network fixes applied."
 echo "======================================================="
 
 # Optional shutdown
