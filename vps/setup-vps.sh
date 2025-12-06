@@ -1,10 +1,11 @@
 #!/bin/bash
 
-VERSION="1.5.0"
+VERSION="1.6.0"
 
 #####################################################
 # VPS Setup Script - Complete Server Configuration
 #####################################################
+# Supports: Ubuntu and Debian
 # Usage: curl -fsSL <your-url>/setup-vps.sh | sudo bash
 # Or: sudo bash setup-vps.sh
 #####################################################
@@ -388,15 +389,32 @@ install_docker() {
 
     section_header "Installing Docker + Docker Compose"
 
+    # Detect OS (Ubuntu or Debian)
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS_ID=$ID
+    else
+        log_error "Cannot detect OS type"
+        return 1
+    fi
+
+    log_info "Detected OS: $OS_ID"
+
+    # Validate supported OS
+    if [ "$OS_ID" != "ubuntu" ] && [ "$OS_ID" != "debian" ]; then
+        log_error "Unsupported OS: $OS_ID (only Ubuntu and Debian are supported)"
+        return 1
+    fi
+
     log_info "Installing Docker prerequisites..."
     apt install -y apt-transport-https ca-certificates gnupg lsb-release
 
-    log_info "Adding Docker GPG key and repository..."
+    log_info "Adding Docker GPG key and repository for $OS_ID..."
     mkdir -p /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    curl -fsSL https://download.docker.com/linux/${OS_ID}/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 
     echo \
-      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/${OS_ID} \
       $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
 
     apt update -y
