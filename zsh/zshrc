@@ -101,7 +101,7 @@ compinit
 # echo "\033[1;36m======================================================\033[0m\n"
 
 # pnpm
-export PNPM_HOME="/Users/ericwu/Library/pnpm"
+export PNPM_HOME="/home/tanker/.local/share/pnpm"
 case ":$PATH:" in
   *":$PNPM_HOME:"*) ;;
   *) export PATH="$PNPM_HOME:$PATH" ;;
