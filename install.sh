@@ -132,6 +132,19 @@ setup_zsh() {
         ln -sf "$CURRENT_FOLDER/zsh/p10k.zsh" "$HOME/.p10k.zsh"
         log_success "Powerlevel10k configuration linked"
     fi
+
+    # Backup existing tmux.conf if it's a regular file (not a symlink)
+    if [ -f "$HOME/.tmux.conf" ] && [ ! -L "$HOME/.tmux.conf" ]; then
+        log_info "Backing up existing .tmux.conf..."
+        mv -f "$HOME/.tmux.conf" "$BACKUP_FOLDER/.tmux.conf.$(date +%Y%m%d_%H%M%S)"
+    fi
+
+    # Create symlink for tmux.conf if it exists in dotfiles
+    if [ -f "$CURRENT_FOLDER/zsh/tmux.conf" ]; then
+        log_info "Creating symlink for .tmux.conf..."
+        ln -sf "$CURRENT_FOLDER/zsh/tmux.conf" "$HOME/.tmux.conf"
+        log_success "Tmux configuration linked"
+    fi
 }
 
 setup_git() {
