@@ -542,6 +542,13 @@ install_user_environment() {
     fi
     log_info "Using home directory: $USER_HOME"
 
+    # Ensure git is installed (required for cloning dotfiles)
+    if ! command -v git &> /dev/null; then
+        log_warning "Git not found, installing git as prerequisite..."
+        apt install -y git
+        log_success "Git installed"
+    fi
+
     DOTFILES_DIR="$USER_HOME/dotfiles"
 
     log_info "Cloning dotfiles repository..."
@@ -587,6 +594,15 @@ install_user_environment() {
     if [ -f "$DOTFILES_DIR/zsh/p10k.zsh" ]; then
         su - "$NEW_USERNAME" -c "ln -sf $DOTFILES_DIR/zsh/p10k.zsh $USER_HOME/.p10k.zsh"
         log_info "Symlinked .p10k.zsh"
+    fi
+
+    # Symlink tmux.conf if it exists in dotfiles
+    if [ -f "$DOTFILES_DIR/zsh/tmux.conf" ]; then
+        if [ -f "$USER_HOME/.tmux.conf" ] && [ ! -L "$USER_HOME/.tmux.conf" ]; then
+            su - "$NEW_USERNAME" -c "mv -f $USER_HOME/.tmux.conf $BACKUP_DIR/.tmux.conf"
+        fi
+        su - "$NEW_USERNAME" -c "ln -sf $DOTFILES_DIR/zsh/tmux.conf $USER_HOME/.tmux.conf"
+        log_info "Symlinked .tmux.conf"
     fi
 
     # Configure SSH authorized_keys

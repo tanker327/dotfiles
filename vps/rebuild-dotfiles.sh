@@ -134,6 +134,24 @@ else
     log_warning "No p10k.zsh found in dotfiles (will be created on first p10k configure)"
 fi
 
+# Backup and symlink tmux.conf
+if [ -f "$HOME/.tmux.conf" ] && [ ! -L "$HOME/.tmux.conf" ]; then
+    log_info "Backing up existing .tmux.conf..."
+    mv -f "$HOME/.tmux.conf" "$BACKUP_DIR/.tmux.conf.backup-$(date +%Y%m%d_%H%M%S)"
+elif [ -L "$HOME/.tmux.conf" ]; then
+    log_info "Removing old .tmux.conf symlink..."
+    rm -f "$HOME/.tmux.conf"
+fi
+
+# Create tmux.conf symlink if file exists in dotfiles
+if [ -f "$DOTFILES_DIR/zsh/tmux.conf" ]; then
+    log_info "Creating .tmux.conf symlink..."
+    ln -sf "$DOTFILES_DIR/zsh/tmux.conf" "$HOME/.tmux.conf"
+    log_success "Symlinked .tmux.conf -> $DOTFILES_DIR/zsh/tmux.conf"
+else
+    log_warning "No tmux.conf found in dotfiles"
+fi
+
 # Check and install Oh My Zsh if needed
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
     section_header "Installing Oh My Zsh"
@@ -180,7 +198,7 @@ log_info "Verifying Git symlinks:"
 ls -la "$HOME/.gitconfig" "$HOME/.gitignore_global" 2>/dev/null || true
 echo ""
 log_info "Verifying Zsh symlinks:"
-ls -la "$HOME/.zshrc" "$HOME/.p10k.zsh" 2>/dev/null || true
+ls -la "$HOME/.zshrc" "$HOME/.p10k.zsh" "$HOME/.tmux.conf" 2>/dev/null || true
 echo ""
 
 section_header "Complete!"
@@ -189,7 +207,7 @@ echo -e "${GREEN}✓ Dotfiles configuration rebuilt successfully${NC}"
 echo ""
 echo -e "${YELLOW}What was configured:${NC}"
 echo "  ✓ Git configuration (.gitconfig, .gitignore_global)"
-echo "  ✓ Zsh configuration (.zshrc, .p10k.zsh)"
+echo "  ✓ Zsh configuration (.zshrc, .p10k.zsh, .tmux.conf)"
 echo "  ✓ Oh My Zsh and plugins"
 echo "  ✓ Powerlevel10k theme"
 echo ""

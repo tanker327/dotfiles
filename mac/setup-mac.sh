@@ -307,6 +307,7 @@ install_common_tools() {
         imagemagick
         rename
         terminal-notifier
+        ffmpeg
     )
 
     log_info "Installing CLI tools: ${tools[*]}"
