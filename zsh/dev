@@ -41,7 +41,7 @@ alias npm-rebuild="rm -rf node_modules && npm i"
 #####################################################
 
 alias t=tmux
-alias ta="tmux a"
+alias ta="tmux a || tmux"
 alias tls="tmux ls"
 alias tn="tmux new -s"
 alias tat="tmux attach -t"
