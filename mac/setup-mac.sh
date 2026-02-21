@@ -308,6 +308,7 @@ install_common_tools() {
         rename
         terminal-notifier
         ffmpeg
+        iproute2mac
     )
 
     log_info "Installing CLI tools: ${tools[*]}"
