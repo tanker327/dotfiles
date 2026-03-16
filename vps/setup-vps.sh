@@ -702,11 +702,19 @@ install_user_environment() {
         log_info "User should run 'claude auth' to authenticate"
     fi
 
-    # Install diff-so-fancy via npm if NVM is installed
+    # Install diff-so-fancy, pnpm, and bun via npm if NVM is installed
     if [ "$INSTALL_NVM" = "y" ]; then
         log_info "Installing diff-so-fancy for $NEW_USERNAME..."
         su - "$NEW_USERNAME" -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && npm install -g diff-so-fancy' 2>&1 | tee -a "$SETUP_INFO_FILE" || log_warning "Failed to install diff-so-fancy"
         log_success "diff-so-fancy installed globally via npm"
+
+        log_info "Installing pnpm for $NEW_USERNAME..."
+        su - "$NEW_USERNAME" -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && npm install -g pnpm' 2>&1 | tee -a "$SETUP_INFO_FILE" || log_warning "Failed to install pnpm"
+        log_success "pnpm installed globally via npm"
+
+        log_info "Installing bun for $NEW_USERNAME..."
+        su - "$NEW_USERNAME" -c 'curl -fsSL https://bun.sh/install | bash' 2>&1 | tee -a "$SETUP_INFO_FILE" || log_warning "Failed to install bun"
+        log_success "bun installed for $NEW_USERNAME"
     fi
 
     # Install Zsh plugins for new user
@@ -731,7 +739,8 @@ install_user_environment() {
     # Log versions of installed tools
     log_info "Logging installed tool versions..."
     if [ "$INSTALL_NVM" = "y" ]; then
-        su - "$NEW_USERNAME" -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && node --version && npm --version' >> "$SETUP_INFO_FILE" 2>&1 || true
+        su - "$NEW_USERNAME" -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && node --version && npm --version && pnpm --version' >> "$SETUP_INFO_FILE" 2>&1 || true
+        su - "$NEW_USERNAME" -c 'export PATH="$HOME/.bun/bin:$PATH" && bun --version' >> "$SETUP_INFO_FILE" 2>&1 || true
     fi
     if [ "$INSTALL_UV" = "y" ]; then
         su - "$NEW_USERNAME" -c 'export PATH="$HOME/.local/bin:$PATH" && uv --version' >> "$SETUP_INFO_FILE" 2>&1 || true
@@ -797,7 +806,7 @@ generate_todo_content() {
     [ "$INSTALL_SECURITY" = "y" ] && content+="  ✓ UFW firewall and fail2ban\n"
     [ "$INSTALL_ZSH" = "y" ] && content+="  ✓ Zsh + Oh My Zsh\n"
     [ "$INSTALL_UV" = "y" ] && content+="  ✓ UV with Python 3.12\n"
-    [ "$INSTALL_NVM" = "y" ] && content+="  ✓ NVM with Node.js 22\n"
+    [ "$INSTALL_NVM" = "y" ] && content+="  ✓ NVM with Node.js 22, pnpm, bun\n"
     [ "$INSTALL_DOCKER" = "y" ] && content+="  ✓ Docker + Docker Compose\n"
     [ "$INSTALL_TAILSCALE" = "y" ] && content+="  ✓ Tailscale VPN\n"
     [ "$INSTALL_CLAUDE" = "y" ] && content+="  ✓ Claude Code CLI\n"

@@ -187,6 +187,9 @@ collect_user_inputs() {
     read -p "Install Obsidian? [Y/n]: " INSTALL_OBSIDIAN </dev/tty
     INSTALL_OBSIDIAN=${INSTALL_OBSIDIAN:-y}
 
+    read -p "Install Ghostty (terminal emulator)? [Y/n]: " INSTALL_GHOSTTY </dev/tty
+    INSTALL_GHOSTTY=${INSTALL_GHOSTTY:-y}
+
     # Dotfiles
     echo ""
     read -p "Clone and apply dotfiles from github.com/tanker327? [Y/n]: " INSTALL_DOTFILES </dev/tty
@@ -205,7 +208,7 @@ collect_user_inputs() {
     [ "$INSTALL_TOOLS" = "y" ] && echo "   Common CLI tools"
     [ "$INSTALL_ZSH" = "y" ] && echo "   Zsh + Oh My Zsh + Powerlevel10k"
     [ "$INSTALL_UV" = "y" ] && echo "   UV (Python 3.12)"
-    [ "$INSTALL_NVM" = "y" ] && echo "   NVM (Node.js 22)"
+    [ "$INSTALL_NVM" = "y" ] && echo "   NVM (Node.js 22, pnpm, bun)"
     [ "$INSTALL_DOCKER" = "y" ] && echo "   Docker Desktop"
     [ "$INSTALL_TAILSCALE" = "y" ] && echo "   Tailscale VPN"
     [ "$INSTALL_CLAUDE" = "y" ] && echo "   Claude Code CLI"
@@ -218,6 +221,7 @@ collect_user_inputs() {
     [ "$INSTALL_CHROME" = "y" ] && echo "   Google Chrome"
     [ "$INSTALL_ALFRED" = "y" ] && echo "   Alfred"
     [ "$INSTALL_OBSIDIAN" = "y" ] && echo "   Obsidian"
+    [ "$INSTALL_GHOSTTY" = "y" ] && echo "   Ghostty"
     echo ""
     [ "$INSTALL_DOTFILES" = "y" ] && echo "   Dotfiles configuration"
     [ "$GENERATE_SSH_KEY" = "y" ] && echo "   SSH key generation"
@@ -249,6 +253,7 @@ INSTALL_DBEAVER="$INSTALL_DBEAVER"
 INSTALL_CHROME="$INSTALL_CHROME"
 INSTALL_ALFRED="$INSTALL_ALFRED"
 INSTALL_OBSIDIAN="$INSTALL_OBSIDIAN"
+INSTALL_GHOSTTY="$INSTALL_GHOSTTY"
 INSTALL_DOTFILES="$INSTALL_DOTFILES"
 GENERATE_SSH_KEY="$GENERATE_SSH_KEY"
 EOF
@@ -422,7 +427,16 @@ install_nvm() {
     nvm install 22
     nvm alias default 22
     nvm use default
-    log_success "NVM and Node.js 22 installed"
+
+    log_info "Installing pnpm..."
+    npm install -g pnpm || log_warning "Failed to install pnpm"
+    log_success "pnpm installed globally via npm"
+
+    log_info "Installing bun..."
+    curl -fsSL https://bun.sh/install | bash || log_warning "Failed to install bun"
+    log_success "bun installed"
+
+    log_success "NVM, Node.js 22, pnpm, and bun installed"
 
     mark_step_complete "install_nvm"
 }
@@ -505,6 +519,7 @@ install_cask_apps() {
     install_cask_if_selected "$INSTALL_CHROME" "google-chrome" "Google Chrome"
     install_cask_if_selected "$INSTALL_ALFRED" "alfred" "Alfred"
     install_cask_if_selected "$INSTALL_OBSIDIAN" "obsidian" "Obsidian"
+    install_cask_if_selected "$INSTALL_GHOSTTY" "ghostty" "Ghostty"
 
     log_success "GUI applications installed"
 
@@ -630,7 +645,7 @@ generate_todo_content() {
     [ "$INSTALL_TOOLS" = "y" ] && content+="  Done - Common CLI tools\n"
     [ "$INSTALL_ZSH" = "y" ] && content+="  Done - Zsh + Oh My Zsh + Powerlevel10k\n"
     [ "$INSTALL_UV" = "y" ] && content+="  Done - UV with Python 3.12\n"
-    [ "$INSTALL_NVM" = "y" ] && content+="  Done - NVM with Node.js 22\n"
+    [ "$INSTALL_NVM" = "y" ] && content+="  Done - NVM with Node.js 22, pnpm, bun\n"
     [ "$INSTALL_DOCKER" = "y" ] && content+="  Done - Docker Desktop\n"
     [ "$INSTALL_TAILSCALE" = "y" ] && content+="  Done - Tailscale VPN\n"
     [ "$INSTALL_CLAUDE" = "y" ] && content+="  Done - Claude Code CLI\n"
@@ -641,6 +656,7 @@ generate_todo_content() {
     [ "$INSTALL_CHROME" = "y" ] && content+="  Done - Google Chrome\n"
     [ "$INSTALL_ALFRED" = "y" ] && content+="  Done - Alfred\n"
     [ "$INSTALL_OBSIDIAN" = "y" ] && content+="  Done - Obsidian\n"
+    [ "$INSTALL_GHOSTTY" = "y" ] && content+="  Done - Ghostty\n"
     [ "$INSTALL_DOTFILES" = "y" ] && content+="  Done - Dotfiles configuration\n"
     [ "$GENERATE_SSH_KEY" = "y" ] && content+="  Done - SSH key generation\n"
 

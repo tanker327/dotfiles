@@ -101,7 +101,7 @@ compinit
 # echo "\033[1;36m======================================================\033[0m\n"
 
 # pnpm
-export PNPM_HOME="/home/tanker/.local/share/pnpm"
+export PNPM_HOME="/Users/ericwu/Library/pnpm"
 case ":$PATH:" in
   *":$PNPM_HOME:"*) ;;
   *) export PATH="$PNPM_HOME:$PATH" ;;
@@ -114,3 +114,6 @@ esac
 # bun
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
+
+# Keep Claude Code up to date on every shell start
+claude update > /dev/null 2>&1 &!
