@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="1.6.0"
+VERSION="1.7.0"
 
 #####################################################
 # VPS Setup Script - Complete Server Configuration
@@ -215,6 +215,9 @@ collect_user_inputs() {
     read -p "Install Tailscale VPN? [Y/n]: " INSTALL_TAILSCALE </dev/tty
     INSTALL_TAILSCALE=${INSTALL_TAILSCALE:-y}
 
+    read -p "Install Bun (JavaScript runtime)? [Y/n]: " INSTALL_BUN </dev/tty
+    INSTALL_BUN=${INSTALL_BUN:-y}
+
     read -p "Install Claude Code CLI? [Y/n]: " INSTALL_CLAUDE </dev/tty
     INSTALL_CLAUDE=${INSTALL_CLAUDE:-y}
 
@@ -265,6 +268,7 @@ collect_user_inputs() {
     [ "$INSTALL_DOCKER" = "y" ] && echo "   Docker + Docker Compose"
     [ "$INSTALL_TAILSCALE" = "y" ] && echo "   Tailscale VPN"
     [ "$INSTALL_CLAUDE" = "y" ] && echo "   Claude Code"
+    [ "$INSTALL_BUN" = "y" ] && echo "   Bun"
     [ "$SETUP_SWAP" = "y" ] && echo "   Swap space (${SWAP_SIZE}GB)"
     [ "$INSTALL_DOTFILES" = "y" ] && echo "   Dotfiles configuration"
     echo ""
@@ -289,6 +293,7 @@ INSTALL_UV="$INSTALL_UV"
 INSTALL_NVM="$INSTALL_NVM"
 INSTALL_DOCKER="$INSTALL_DOCKER"
 INSTALL_TAILSCALE="$INSTALL_TAILSCALE"
+INSTALL_BUN="$INSTALL_BUN"
 INSTALL_CLAUDE="$INSTALL_CLAUDE"
 SETUP_SWAP="$SETUP_SWAP"
 SWAP_SIZE="$SWAP_SIZE"
@@ -694,6 +699,17 @@ install_user_environment() {
         fi
     fi
 
+    # Install Bun for new user
+    if [ "$INSTALL_BUN" = "y" ]; then
+        if ! su - "$NEW_USERNAME" -c 'command -v bun' &>/dev/null; then
+            log_info "Installing Bun for $NEW_USERNAME..."
+            su - "$NEW_USERNAME" -c 'curl -fsSL https://bun.sh/install | bash'
+            log_success "Bun installed for $NEW_USERNAME"
+        else
+            log_info "Bun already installed for $NEW_USERNAME"
+        fi
+    fi
+
     # Install Claude Code for new user
     if [ "$INSTALL_CLAUDE" = "y" ]; then
         log_info "Installing Claude Code for $NEW_USERNAME..."
@@ -744,6 +760,9 @@ install_user_environment() {
     fi
     if [ "$INSTALL_UV" = "y" ]; then
         su - "$NEW_USERNAME" -c 'export PATH="$HOME/.local/bin:$PATH" && uv --version' >> "$SETUP_INFO_FILE" 2>&1 || true
+    fi
+    if [ "$INSTALL_BUN" = "y" ]; then
+        su - "$NEW_USERNAME" -c 'export PATH="$HOME/.bun/bin:$PATH" && bun --version' >> "$SETUP_INFO_FILE" 2>&1 || true
     fi
     if [ "$INSTALL_CLAUDE" = "y" ]; then
         su - "$NEW_USERNAME" -c 'export PATH="$HOME/.local/bin:$PATH" && claude --version' >> "$SETUP_INFO_FILE" 2>&1 || true
@@ -809,6 +828,7 @@ generate_todo_content() {
     [ "$INSTALL_NVM" = "y" ] && content+="  ✓ NVM with Node.js 22, pnpm, bun\n"
     [ "$INSTALL_DOCKER" = "y" ] && content+="  ✓ Docker + Docker Compose\n"
     [ "$INSTALL_TAILSCALE" = "y" ] && content+="  ✓ Tailscale VPN\n"
+    [ "$INSTALL_BUN" = "y" ] && content+="  ✓ Bun\n"
     [ "$INSTALL_CLAUDE" = "y" ] && content+="  ✓ Claude Code CLI\n"
     [ "$SETUP_SWAP" = "y" ] && content+="  ✓ Swap space (${SWAP_SIZE}GB)\n"
     [ "$INSTALL_DOTFILES" = "y" ] && content+="  ✓ Dotfiles configuration\n"
