@@ -1,6 +1,11 @@
 #!/bin/bash
 
-VERSION="1.7.0"
+VERSION="1.9.0"
+
+# Pinned versions for reproducibility — bump as needed
+NVM_VERSION="v0.40.1"
+NODE_VERSION="22"
+PYTHON_VERSION="3.12"
 
 #####################################################
 # VPS Setup Script - Complete Server Configuration
@@ -11,6 +16,7 @@ VERSION="1.7.0"
 #####################################################
 
 set -e
+set -o pipefail
 
 # Color codes for output
 RED='\033[0;31m'
@@ -203,10 +209,10 @@ collect_user_inputs() {
     read -p "Install Zsh + Oh My Zsh? [Y/n]: " INSTALL_ZSH </dev/tty
     INSTALL_ZSH=${INSTALL_ZSH:-y}
 
-    read -p "Install UV (Python package manager) with Python 3.12? [Y/n]: " INSTALL_UV </dev/tty
+    read -p "Install UV (Python package manager) with Python ${PYTHON_VERSION}? [Y/n]: " INSTALL_UV </dev/tty
     INSTALL_UV=${INSTALL_UV:-y}
 
-    read -p "Install NVM with Node.js 22? [Y/n]: " INSTALL_NVM </dev/tty
+    read -p "Install NVM with Node.js ${NODE_VERSION}? [Y/n]: " INSTALL_NVM </dev/tty
     INSTALL_NVM=${INSTALL_NVM:-y}
 
     read -p "Install Docker + Docker Compose? [Y/n]: " INSTALL_DOCKER </dev/tty
@@ -263,8 +269,8 @@ collect_user_inputs() {
     [ "$INSTALL_TOOLS" = "y" ] && echo "   Common tools"
     [ "$INSTALL_SECURITY" = "y" ] && echo "   Security (UFW + fail2ban)"
     [ "$INSTALL_ZSH" = "y" ] && echo "   Zsh + Oh My Zsh"
-    [ "$INSTALL_UV" = "y" ] && echo "   UV (Python 3.12)"
-    [ "$INSTALL_NVM" = "y" ] && echo "   NVM (Node.js 22)"
+    [ "$INSTALL_UV" = "y" ] && echo "   UV (Python ${PYTHON_VERSION})"
+    [ "$INSTALL_NVM" = "y" ] && echo "   NVM (Node.js ${NODE_VERSION})"
     [ "$INSTALL_DOCKER" = "y" ] && echo "   Docker + Docker Compose"
     [ "$INSTALL_TAILSCALE" = "y" ] && echo "   Tailscale VPN"
     [ "$INSTALL_CLAUDE" = "y" ] && echo "   Claude Code"
@@ -416,7 +422,7 @@ install_docker() {
 
     log_info "Adding Docker GPG key and repository for $OS_ID..."
     mkdir -p /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/${OS_ID}/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    curl -fsSL https://download.docker.com/linux/${OS_ID}/gpg | gpg --dearmor --yes -o /etc/apt/keyrings/docker.gpg
 
     echo \
       "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/${OS_ID} \
@@ -461,6 +467,24 @@ setup_swap_space() {
 
     section_header "Setting Up Swap Space"
 
+    # Skip cleanly if swap already active
+    if swapon --show 2>/dev/null | grep -q '/swapfile'; then
+        log_info "Swap file /swapfile already active, skipping creation"
+        if ! grep -q '/swapfile' /etc/fstab; then
+            echo '/swapfile none swap sw 0 0' >> /etc/fstab
+            log_info "Added /swapfile to /etc/fstab"
+        fi
+        free -h >> "$SETUP_INFO_FILE"
+        mark_step_complete "setup_swap_space"
+        return 0
+    fi
+
+    # If /swapfile exists but is inactive, remove it before recreating
+    if [ -f /swapfile ]; then
+        log_warning "Found stale /swapfile, removing before recreate"
+        rm -f /swapfile
+    fi
+
     log_info "Creating ${SWAP_SIZE}GB swap file..."
     fallocate -l ${SWAP_SIZE}G /swapfile
     chmod 600 /swapfile
@@ -486,6 +510,12 @@ create_user() {
     # Skip user creation if using existing user
     if [ "$CREATE_NEW_USER" = "n" ]; then
         log_info "Skipping user creation (using existing user: $NEW_USERNAME)"
+
+        echo "" >> "$SETUP_INFO_FILE"
+        echo "=== USER ACCOUNT INFO ===" >> "$SETUP_INFO_FILE"
+        echo "Username: $NEW_USERNAME (existing user, password unchanged)" >> "$SETUP_INFO_FILE"
+        echo "=========================" >> "$SETUP_INFO_FILE"
+        echo "" >> "$SETUP_INFO_FILE"
 
         # Add to docker group if docker is installed and user not already in group
         if command -v docker &> /dev/null; then
@@ -557,16 +587,22 @@ install_user_environment() {
     DOTFILES_DIR="$USER_HOME/dotfiles"
 
     log_info "Cloning dotfiles repository..."
-    if [ -d "$DOTFILES_DIR" ]; then
-        log_warning "Dotfiles directory already exists"
-        rm -rf "$DOTFILES_DIR"
-    fi
-
-    # Clone as the new user
-    if ! su - "$NEW_USERNAME" -c "git clone https://github.com/tanker327/dotfiles.git $DOTFILES_DIR" 2>&1 | tee -a "$SETUP_INFO_FILE"; then
-        log_error "Failed to clone dotfiles repository"
-        log_warning "Continuing without dotfiles... User can clone manually later"
-        return 1
+    if [ -d "$DOTFILES_DIR/.git" ]; then
+        log_info "Dotfiles repo already present, pulling latest (preserves local changes)..."
+        su - "$NEW_USERNAME" -c "cd $DOTFILES_DIR && git pull --ff-only" 2>&1 | tee -a "$SETUP_INFO_FILE" \
+            || log_warning "git pull failed (likely local changes) — leaving existing dotfiles in place"
+    elif [ -d "$DOTFILES_DIR" ]; then
+        log_warning "Dotfiles directory exists but is not a git repo, backing up to ${DOTFILES_DIR}.bak.$(date +%s)"
+        mv "$DOTFILES_DIR" "${DOTFILES_DIR}.bak.$(date +%s)"
+        su - "$NEW_USERNAME" -c "git clone https://github.com/tanker327/dotfiles.git $DOTFILES_DIR" 2>&1 | tee -a "$SETUP_INFO_FILE" \
+            || { log_error "Failed to clone dotfiles repository"; return 1; }
+    else
+        # Clone as the new user
+        if ! su - "$NEW_USERNAME" -c "git clone https://github.com/tanker327/dotfiles.git $DOTFILES_DIR" 2>&1 | tee -a "$SETUP_INFO_FILE"; then
+            log_error "Failed to clone dotfiles repository"
+            log_warning "Continuing without dotfiles... User can clone manually later"
+            return 1
+        fi
     fi
 
     if [ ! -d "$DOTFILES_DIR" ]; then
@@ -649,9 +685,9 @@ install_user_environment() {
         chsh -s $(which zsh) "$NEW_USERNAME"
         log_info "Changed default shell to zsh for $NEW_USERNAME"
 
-        # Install Oh My Zsh for new user
+        # Install Oh My Zsh for new user (KEEP_ZSHRC prevents overwriting if zshrc exists)
         if [ ! -d "$USER_HOME/.oh-my-zsh" ]; then
-            su - "$NEW_USERNAME" -c 'sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended'
+            su - "$NEW_USERNAME" -c 'KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended'
             log_success "Installed Oh My Zsh for $NEW_USERNAME"
         fi
 
@@ -675,11 +711,11 @@ install_user_environment() {
     if [ "$INSTALL_NVM" = "y" ]; then
         if [ ! -d "$USER_HOME/.nvm" ]; then
             log_info "Installing NVM for $NEW_USERNAME..."
-            su - "$NEW_USERNAME" -c 'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash'
+            su - "$NEW_USERNAME" -c "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh | bash"
 
-            # Install Node.js 22 for the user
-            su - "$NEW_USERNAME" -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && nvm install 22 && nvm alias default 22 && nvm use default'
-            log_success "NVM and Node.js 22 installed for $NEW_USERNAME"
+            # Install Node.js for the user
+            su - "$NEW_USERNAME" -c "export NVM_DIR=\"\$HOME/.nvm\" && [ -s \"\$NVM_DIR/nvm.sh\" ] && \\. \"\$NVM_DIR/nvm.sh\" && nvm install ${NODE_VERSION} && nvm alias default ${NODE_VERSION} && nvm use default"
+            log_success "NVM and Node.js ${NODE_VERSION} installed for $NEW_USERNAME"
         else
             log_info "NVM already installed for $NEW_USERNAME"
         fi
@@ -691,9 +727,9 @@ install_user_environment() {
             log_info "Installing UV for $NEW_USERNAME..."
             su - "$NEW_USERNAME" -c 'curl -LsSf https://astral.sh/uv/install.sh | sh'
 
-            # Install Python 3.12 for the user
-            su - "$NEW_USERNAME" -c 'export PATH="$HOME/.local/bin:$PATH" && uv python install 3.12'
-            log_success "UV and Python 3.12 installed for $NEW_USERNAME"
+            # Install Python for the user
+            su - "$NEW_USERNAME" -c "export PATH=\"\$HOME/.local/bin:\$PATH\" && uv python install ${PYTHON_VERSION}"
+            log_success "UV and Python ${PYTHON_VERSION} installed for $NEW_USERNAME"
         else
             log_info "UV already installed for $NEW_USERNAME"
         fi
@@ -710,15 +746,19 @@ install_user_environment() {
         fi
     fi
 
-    # Install Claude Code for new user
+    # Install Claude Code for new user (skip if already installed)
     if [ "$INSTALL_CLAUDE" = "y" ]; then
-        log_info "Installing Claude Code for $NEW_USERNAME..."
-        su - "$NEW_USERNAME" -c 'curl -fsSL https://installs.claude.ai/install.sh | sh'
-        log_success "Claude Code installed for $NEW_USERNAME"
-        log_info "User should run 'claude auth' to authenticate"
+        if su - "$NEW_USERNAME" -c 'export PATH="$HOME/.local/bin:$PATH"; command -v claude' &>/dev/null; then
+            log_info "Claude Code already installed for $NEW_USERNAME, skipping"
+        else
+            log_info "Installing Claude Code for $NEW_USERNAME..."
+            su - "$NEW_USERNAME" -c 'curl -fsSL https://installs.claude.ai/install.sh | sh'
+            log_success "Claude Code installed for $NEW_USERNAME"
+            log_info "User should run 'claude' then '/login' inside it to authenticate"
+        fi
     fi
 
-    # Install diff-so-fancy, pnpm, and bun via npm if NVM is installed
+    # Install diff-so-fancy and pnpm via npm if NVM is installed
     if [ "$INSTALL_NVM" = "y" ]; then
         log_info "Installing diff-so-fancy for $NEW_USERNAME..."
         su - "$NEW_USERNAME" -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && npm install -g diff-so-fancy' 2>&1 | tee -a "$SETUP_INFO_FILE" || log_warning "Failed to install diff-so-fancy"
@@ -727,10 +767,6 @@ install_user_environment() {
         log_info "Installing pnpm for $NEW_USERNAME..."
         su - "$NEW_USERNAME" -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && npm install -g pnpm' 2>&1 | tee -a "$SETUP_INFO_FILE" || log_warning "Failed to install pnpm"
         log_success "pnpm installed globally via npm"
-
-        log_info "Installing bun for $NEW_USERNAME..."
-        su - "$NEW_USERNAME" -c 'curl -fsSL https://bun.sh/install | bash' 2>&1 | tee -a "$SETUP_INFO_FILE" || log_warning "Failed to install bun"
-        log_success "bun installed for $NEW_USERNAME"
     fi
 
     # Install Zsh plugins for new user
@@ -756,7 +792,6 @@ install_user_environment() {
     log_info "Logging installed tool versions..."
     if [ "$INSTALL_NVM" = "y" ]; then
         su - "$NEW_USERNAME" -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && node --version && npm --version && pnpm --version' >> "$SETUP_INFO_FILE" 2>&1 || true
-        su - "$NEW_USERNAME" -c 'export PATH="$HOME/.bun/bin:$PATH" && bun --version' >> "$SETUP_INFO_FILE" 2>&1 || true
     fi
     if [ "$INSTALL_UV" = "y" ]; then
         su - "$NEW_USERNAME" -c 'export PATH="$HOME/.local/bin:$PATH" && uv --version' >> "$SETUP_INFO_FILE" 2>&1 || true
@@ -824,8 +859,8 @@ generate_todo_content() {
     [ "$INSTALL_TOOLS" = "y" ] && content+="  ✓ Common development tools\n"
     [ "$INSTALL_SECURITY" = "y" ] && content+="  ✓ UFW firewall and fail2ban\n"
     [ "$INSTALL_ZSH" = "y" ] && content+="  ✓ Zsh + Oh My Zsh\n"
-    [ "$INSTALL_UV" = "y" ] && content+="  ✓ UV with Python 3.12\n"
-    [ "$INSTALL_NVM" = "y" ] && content+="  ✓ NVM with Node.js 22, pnpm, bun\n"
+    [ "$INSTALL_UV" = "y" ] && content+="  ✓ UV with Python ${PYTHON_VERSION}\n"
+    [ "$INSTALL_NVM" = "y" ] && content+="  ✓ NVM with Node.js ${NODE_VERSION}, pnpm, diff-so-fancy\n"
     [ "$INSTALL_DOCKER" = "y" ] && content+="  ✓ Docker + Docker Compose\n"
     [ "$INSTALL_TAILSCALE" = "y" ] && content+="  ✓ Tailscale VPN\n"
     [ "$INSTALL_BUN" = "y" ] && content+="  ✓ Bun\n"
@@ -872,7 +907,7 @@ generate_todo_content() {
 
     if [ "$INSTALL_CLAUDE" = "y" ]; then
         content+="$step. Authenticate Claude Code:\n"
-        content+="   claude auth\n\n"
+        content+="   Run 'claude' to launch, then type '/login' to authenticate\n\n"
         step=$((step + 1))
     fi
 
@@ -968,8 +1003,12 @@ show_summary() {
     echo "User created: $NEW_USERNAME" >> "$SETUP_INFO_FILE"
     echo "========================================" >> "$SETUP_INFO_FILE"
 
-    # Create after_setup_todo.txt in user's home directory
-    USER_HOME="/home/$NEW_USERNAME"
+    # Create after_setup_todo.txt in user's home directory (dynamically detected)
+    USER_HOME=$(getent passwd "$NEW_USERNAME" | cut -d: -f6)
+    if [ -z "$USER_HOME" ] || [ ! -d "$USER_HOME" ]; then
+        log_warning "Could not detect home for $NEW_USERNAME, falling back to /home/$NEW_USERNAME"
+        USER_HOME="/home/$NEW_USERNAME"
+    fi
     TODO_FILE="$USER_HOME/after_setup_todo.txt"
 
     log_info "Creating after setup todo list at $TODO_FILE..."
