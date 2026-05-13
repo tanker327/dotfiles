@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="2.3.1"
+VERSION="2.4.0"
 
 # Pinned versions for reproducibility — bump as needed
 NVM_VERSION="v0.40.1"
@@ -218,8 +218,10 @@ collect_user_inputs() {
     fi
 
     # Collect git configuration
-    ask "Enter Git user name (e.g., 'Eric'): " GIT_USER_NAME
-    ask "Enter Git email (e.g., 'your@email.com'): " GIT_USER_EMAIL
+    ask "Enter Git user name [tanker]: " GIT_USER_NAME
+    GIT_USER_NAME=${GIT_USER_NAME:-tanker}
+    ask "Enter Git email [tanker327@gmail.com]: " GIT_USER_EMAIL
+    GIT_USER_EMAIL=${GIT_USER_EMAIL:-tanker327@gmail.com}
 
     # Component selection
     echo ""
@@ -291,6 +293,9 @@ collect_user_inputs() {
     ask "Clone and apply dotfiles from github.com/tanker327? [Y/n]: " INSTALL_DOTFILES
     INSTALL_DOTFILES=${INSTALL_DOTFILES:-y}
 
+    ask "Generate ed25519 SSH key for user (id_ed25519 for GitHub/GitLab)? [Y/n]: " GENERATE_SSH_KEY
+    GENERATE_SSH_KEY=${GENERATE_SSH_KEY:-y}
+
     # Summary of selections
     echo ""
     section_header "Configuration Summary"
@@ -311,9 +316,11 @@ collect_user_inputs() {
     [ "$INSTALL_BUN" = "y" ] && echo "   Bun"
     [ "$SETUP_SWAP" = "y" ] && echo "   Swap space (${SWAP_SIZE}GB)"
     [ "$INSTALL_DOTFILES" = "y" ] && echo "   Dotfiles configuration"
+    [ "$GENERATE_SSH_KEY" = "y" ] && echo "   ed25519 SSH key for user"
     echo ""
 
-    ask "Proceed with installation? (y/n): " CONFIRM_INSTALL
+    ask "Proceed with installation? [Y/n]: " CONFIRM_INSTALL
+    CONFIRM_INSTALL=${CONFIRM_INSTALL:-y}
     if [ "$CONFIRM_INSTALL" != "y" ]; then
         log_warning "Installation cancelled by user"
         exit 0
@@ -340,6 +347,7 @@ INSTALL_CODEX="$INSTALL_CODEX"
 SETUP_SWAP="$SETUP_SWAP"
 SWAP_SIZE="$SWAP_SIZE"
 INSTALL_DOTFILES="$INSTALL_DOTFILES"
+GENERATE_SSH_KEY="$GENERATE_SSH_KEY"
 EOF
     log_success "Configuration saved to $STATE_FILE"
 }
@@ -738,19 +746,23 @@ user_env_ssh() {
         log_warning "No authorized_keys file found in dotfiles/vps/ssh-keys/"
     fi
 
-    # Generate user's own SSH key (for GitHub/GitLab) if missing
-    if [ ! -f "$SSH_DIR/id_ed25519" ]; then
-        log_info "Generating SSH key for $NEW_USERNAME (for GitHub/GitLab)..."
-        su - "$NEW_USERNAME" -c "ssh-keygen -t ed25519 -C '$GIT_USER_EMAIL' -f $SSH_DIR/id_ed25519 -N ''"
-        log_success "SSH key generated at $SSH_DIR/id_ed25519"
+    # Generate user's own SSH key (for GitHub/GitLab) if requested and missing
+    if [ "$GENERATE_SSH_KEY" = "y" ]; then
+        if [ ! -f "$SSH_DIR/id_ed25519" ]; then
+            log_info "Generating ed25519 SSH key for $NEW_USERNAME (for GitHub/GitLab)..."
+            su - "$NEW_USERNAME" -c "ssh-keygen -t ed25519 -C '$GIT_USER_EMAIL' -f $SSH_DIR/id_ed25519 -N ''"
+            log_success "SSH key generated at $SSH_DIR/id_ed25519"
 
-        echo "" >> "$SETUP_INFO_FILE"
-        echo "=== USER SSH PUBLIC KEY ($NEW_USERNAME) ===" >> "$SETUP_INFO_FILE"
-        su - "$NEW_USERNAME" -c "cat $SSH_DIR/id_ed25519.pub" >> "$SETUP_INFO_FILE"
-        echo "========================================" >> "$SETUP_INFO_FILE"
-        echo "" >> "$SETUP_INFO_FILE"
+            echo "" >> "$SETUP_INFO_FILE"
+            echo "=== USER SSH PUBLIC KEY ($NEW_USERNAME) ===" >> "$SETUP_INFO_FILE"
+            su - "$NEW_USERNAME" -c "cat $SSH_DIR/id_ed25519.pub" >> "$SETUP_INFO_FILE"
+            echo "========================================" >> "$SETUP_INFO_FILE"
+            echo "" >> "$SETUP_INFO_FILE"
+        else
+            log_info "SSH key already exists for $NEW_USERNAME"
+        fi
     else
-        log_info "SSH key already exists for $NEW_USERNAME"
+        log_info "Skipping SSH key generation (GENERATE_SSH_KEY=n)"
     fi
 
     mark_step_complete "user_env_ssh"
