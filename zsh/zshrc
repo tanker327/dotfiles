@@ -2,8 +2,14 @@
 # PATH Configuration
 #####################################################
 
-# Custom git commands and system paths
-export PATH=$HOME/dotfiles/git/new-git-command:/usr/local/sbin:$PATH
+# Custom git commands (only if dotfiles repo present)
+[ -d "$HOME/dotfiles/git/new-git-command" ] && export PATH="$HOME/dotfiles/git/new-git-command:$PATH"
+
+# macOS Intel Homebrew sbin
+[[ "$OSTYPE" == "darwin"* ]] && export PATH="/usr/local/sbin:$PATH"
+
+# Apple Silicon Homebrew
+[ -d "/opt/homebrew/bin" ] && export PATH="/opt/homebrew/bin:$PATH"
 
 # Local binaries (UV, Claude Code, pipx, etc.)
 export PATH="$PATH:$HOME/.local/bin"
@@ -17,7 +23,7 @@ fi
 # Oh My Zsh Configuration
 #####################################################
 
-export ZSH=$HOME/.oh-my-zsh
+export ZSH="$HOME/.oh-my-zsh"
 
 
 #####################################################
@@ -31,28 +37,23 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
-# Theme - Powerlevel10k
-ZSH_THEME="powerlevel10k/powerlevel10k"
+# Load Oh My Zsh (only if installed)
+if [ -f "$ZSH/oh-my-zsh.sh" ]; then
+  # Theme - Powerlevel10k (falls back gracefully if theme not installed)
+  ZSH_THEME="powerlevel10k/powerlevel10k"
 
-# Plugins
-plugins=(
-  git
-  docker
-  docker-compose
-  sudo
-  z
-  colored-man-pages
-  command-not-found
-  extract
-  zsh-autosuggestions
-  zsh-syntax-highlighting
-)
+  # Plugins (only include if each plugin dir is present)
+  plugins=(git sudo z colored-man-pages command-not-found extract)
+  [ -d "$ZSH/plugins/docker" ] && plugins+=(docker)
+  [ -d "$ZSH/plugins/docker-compose" ] && plugins+=(docker-compose)
+  [ -d "${ZSH_CUSTOM:-$ZSH/custom}/plugins/zsh-autosuggestions" ] && plugins+=(zsh-autosuggestions)
+  [ -d "${ZSH_CUSTOM:-$ZSH/custom}/plugins/zsh-syntax-highlighting" ] && plugins+=(zsh-syntax-highlighting)
 
-# Load Oh My Zsh
-source $ZSH/oh-my-zsh.sh
+  source "$ZSH/oh-my-zsh.sh"
+fi
 
-# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
-[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+# Powerlevel10k user config
+[ -f "$HOME/.p10k.zsh" ] && source "$HOME/.p10k.zsh"
 
 #####################################################
 # Development Tools Initialization
@@ -63,8 +64,8 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 
-# Java (macOS)
-if JAVA_HOME=$(/usr/libexec/java_home 2>/dev/null); then
+# Java (macOS only)
+if [[ "$OSTYPE" == "darwin"* ]] && JAVA_HOME=$(/usr/libexec/java_home 2>/dev/null); then
   export JAVA_HOME
   export PATH="$JAVA_HOME/bin:$PATH"
 fi
@@ -73,11 +74,11 @@ fi
 # Custom Configurations
 #####################################################
 
-# Import custom aliases and functions
-source ~/dotfiles/zsh/dev
+# Import custom aliases and functions (only if file present)
+[ -f "$HOME/dotfiles/zsh/dev" ] && source "$HOME/dotfiles/zsh/dev"
 
 # Import environment variables (if exists)
-[ -f ~/.env-keyexport ] && source ~/.env-keyexport
+[ -f "$HOME/.env-keyexport" ] && source "$HOME/.env-keyexport"
 
 #####################################################
 # Shell Completions
@@ -100,20 +101,30 @@ compinit
 # echo "\033[1;32m  Welcome back, this is $(hostname)  \033[0m"
 # echo "\033[1;36m======================================================\033[0m\n"
 
-# pnpm
-export PNPM_HOME="/Users/ericwu/Library/pnpm"
-case ":$PATH:" in
-  *":$PNPM_HOME:"*) ;;
-  *) export PATH="$PNPM_HOME:$PATH" ;;
-esac
-# pnpm end
+# pnpm (only if install dir exists)
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  _pnpm_home="$HOME/Library/pnpm"
+else
+  _pnpm_home="$HOME/.local/share/pnpm"
+fi
+if [ -d "$_pnpm_home" ]; then
+  export PNPM_HOME="$_pnpm_home"
+  case ":$PATH:" in
+    *":$PNPM_HOME:"*) ;;
+    *) export PATH="$PNPM_HOME:$PATH" ;;
+  esac
+fi
+unset _pnpm_home
 
-# bun completions
-[ -s "/Users/ericwu/.bun/_bun" ] && source "/Users/ericwu/.bun/_bun"
+# bun (only if installed)
+if [ -d "$HOME/.bun" ]; then
+  export BUN_INSTALL="$HOME/.bun"
+  [ -d "$BUN_INSTALL/bin" ] && export PATH="$BUN_INSTALL/bin:$PATH"
+  [ -s "$BUN_INSTALL/_bun" ] && source "$BUN_INSTALL/_bun"
+fi
 
-# bun
-export BUN_INSTALL="$HOME/.bun"
-export PATH="$BUN_INSTALL/bin:$PATH"
+# Keep Claude Code up to date on every shell start (only if installed)
+command -v claude >/dev/null 2>&1 && claude update > /dev/null 2>&1 &!
 
-# Keep Claude Code up to date on every shell start
-claude update > /dev/null 2>&1 &!
+# OpenClaw Completion (only if installed)
+[ -f "$HOME/.openclaw/completions/openclaw.zsh" ] && source "$HOME/.openclaw/completions/openclaw.zsh"
