@@ -1,0 +1,10 @@
+FROM ubuntu:24.04
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl ca-certificates sudo git locales \
+        openssh-client adduser passwd \
+    && rm -rf /var/lib/apt/lists/*
+# setup-vps.sh is mounted at runtime via -v, not COPYed, so the harness
+# always tests the local working tree.
+WORKDIR /root
+CMD ["/bin/bash"]
