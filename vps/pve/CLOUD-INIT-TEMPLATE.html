@@ -1,0 +1,1228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Proxmox Cloud-Init Template Guide</title>
+
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" />
+
+<!-- Tailwind v4 browser CDN — single-file, no build step -->
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+<!-- Tailwind v4: design tokens via @theme (single source of truth for retheming) -->
+<style type="text/tailwindcss">
+  @theme {
+    --color-bg:           #0d1015;
+    --color-bg-elev:      #141923;
+    --color-bg-elev-2:    #1a2030;
+    --color-border:       #232a38;
+    --color-border-bright:#2f3a4d;
+    --color-text:         #e8edf5;
+    --color-text-dim:     #97a2b6;
+    --color-text-faint:   #5e6779;
+    --color-accent:       #5fe17f;
+    --color-accent-warn:  #ffb454;
+    --color-accent-danger:#ff6b6b;
+    --color-accent-info:  #6cb6ff;
+
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --font-sans: Inter, system-ui, -apple-system, sans-serif;
+  }
+</style>
+
+<!-- Component classes — referenced from the HTML so you can restyle a pattern in one place.
+     Use the CSS variables above; everything else in the document is Tailwind utility classes. -->
+<style>
+  /* Make tokens available even before Tailwind finishes compiling (avoids FOUC on slow connections). */
+  :root {
+    --color-bg: #0d1015;
+    --color-bg-elev: #141923;
+    --color-bg-elev-2: #1a2030;
+    --color-border: #232a38;
+    --color-border-bright: #2f3a4d;
+    --color-text: #e8edf5;
+    --color-text-dim: #97a2b6;
+    --color-text-faint: #5e6779;
+    --color-accent: #5fe17f;
+    --color-accent-warn: #ffb454;
+    --color-accent-danger: #ff6b6b;
+    --color-accent-info: #6cb6ff;
+    --font-mono: "JetBrains Mono", ui-monospace, monospace;
+    --font-sans: Inter, system-ui, sans-serif;
+  }
+
+  body { background: var(--color-bg); color: var(--color-text); font-family: var(--font-sans); }
+  ::selection { background: var(--color-accent); color: #0a0d12; }
+
+  /* ----- layout wrappers ----- */
+  .wrap        { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+  .wrap-narrow { max-width: 820px;  margin: 0 auto; padding: 0 24px; }
+
+  /* ----- card patterns ----- */
+  .card-base {
+    background: var(--color-bg-elev);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 22px 24px;
+  }
+  .card-accent {
+    background: linear-gradient(180deg, rgba(95,225,127,0.13), color-mix(in srgb, var(--color-bg-elev) 60%, transparent));
+    border: 1px solid rgba(95,225,127,0.4);
+    border-radius: 12px;
+    padding: 22px 24px;
+  }
+  .card-warn {
+    background: linear-gradient(180deg, rgba(255,180,84,0.13), color-mix(in srgb, var(--color-bg-elev) 60%, transparent));
+    border: 1px solid rgba(255,180,84,0.35);
+    border-radius: 12px;
+    padding: 22px 24px;
+  }
+  .card-tag {
+    display: inline-block; font-family: var(--font-mono); font-size: 11px;
+    padding: 3px 8px; border-radius: 4px;
+    background: var(--color-bg-elev-2); color: var(--color-text-dim);
+    margin-bottom: 12px; letter-spacing: 0.06em;
+  }
+
+  /* ----- code blocks ----- */
+  .code-block {
+    position: relative; background: #08090d; border: 1px solid var(--color-border);
+    border-radius: 10px; margin: 14px 0; overflow: hidden;
+  }
+  .code-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 14px; background: var(--color-bg-elev);
+    border-bottom: 1px solid var(--color-border);
+    font-family: var(--font-mono); font-size: 12px; color: var(--color-text-dim);
+  }
+  .code-pre {
+    margin: 0; padding: 14px 16px; overflow-x: auto; font-family: var(--font-mono);
+    font-size: 13px; line-height: 1.55; color: var(--color-text); white-space: pre;
+  }
+  .copy-btn {
+    border: 1px solid var(--color-border-bright); background: transparent;
+    color: var(--color-text-dim); font-family: var(--font-mono); font-size: 11px;
+    padding: 4px 10px; border-radius: 5px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+  }
+  .copy-btn:hover { color: var(--color-accent); border-color: var(--color-accent); }
+  .copy-btn.copied { color: var(--color-accent); border-color: var(--color-accent); background: rgba(95,225,127,0.13); }
+
+  /* ----- inline code ----- */
+  .icode {
+    font-family: var(--font-mono); font-size: 0.9em;
+    background: var(--color-bg-elev); padding: 1px 6px;
+    border-radius: 4px; color: var(--color-accent);
+    border: 1px solid var(--color-border);
+  }
+
+  /* ----- callouts ----- */
+  .callout-base   { border-left: 3px solid var(--color-accent);        background: rgba(95,225,127,0.13); padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 18px 0; color: var(--color-text); }
+  .callout-warn   { border-left: 3px solid var(--color-accent-warn);   background: rgba(255,180,84,0.13); padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 18px 0; color: var(--color-text); }
+  .callout-danger { border-left: 3px solid var(--color-accent-danger); background: rgba(255,107,107,0.13); padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 18px 0; color: var(--color-text); }
+
+  /* ----- knob/spec tables ----- */
+  .knob-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  .knob-table th, .knob-table td {
+    text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--color-border);
+  }
+  .knob-table th { color: var(--color-text-dim); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .knob-table td { color: var(--color-text); }
+  .knob-table td:first-child { font-family: var(--font-mono); color: var(--color-accent-info); white-space: nowrap; }
+  .knob-table tr:hover td { background: var(--color-bg-elev); }
+
+  /* ----- tip cards ----- */
+  .tip-card {
+    background: var(--color-bg-elev); border: 1px solid var(--color-border);
+    border-radius: 10px; padding: 18px;
+    transition: border-color 0.15s, transform 0.15s;
+  }
+  .tip-card:hover { border-color: var(--color-border-bright); transform: translateY(-2px); }
+
+  /* ----- form inputs ----- */
+  .form-input {
+    width: 100%; background: #0a0d13; border: 1px solid var(--color-border-bright);
+    color: var(--color-text); padding: 9px 11px; border-radius: 6px;
+    font-family: var(--font-mono); font-size: 13px; outline: none;
+    transition: border-color 0.15s;
+  }
+  .form-input:focus { border-color: var(--color-accent); }
+  .form-label {
+    display: block; font-size: 12px; color: var(--color-text-dim);
+    margin-bottom: 5px; font-family: var(--font-mono);
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+
+  /* ----- shell-syntax token tints inside <pre> ----- */
+  .tok-comment { color: var(--color-text-faint); font-style: italic; }
+  .tok-cmd     { color: var(--color-accent); }
+  .tok-flag    { color: var(--color-accent-info); }
+  .tok-str     { color: var(--color-accent-warn); }
+  .tok-var     { color: #c597f7; }
+
+  /* ----- <details> custom marker ----- */
+  details.acc summary { list-style: none; }
+  details.acc summary::-webkit-details-marker { display: none; }
+  details.acc summary::after  { content: "+"; font-family: var(--font-mono); color: var(--color-accent); font-size: 18px; }
+  details.acc[open] summary::after { content: "−"; }
+
+  /* ----- mermaid container ----- */
+  .mermaid { text-align: center; }
+
+  /* ----- dynamic-state classes (toggled by JS; isolated here so Tailwind's
+          static class scan doesn't need to know about them) ----- */
+  .seg-btn.active        { background: var(--color-accent); color: #0a0d12 !important; font-weight: 700; }
+  .seg-btn.active .star  { color: #0a0d12 !important; }
+  .tier-card.loaded      { border-color: var(--color-accent); box-shadow: 0 0 0 2px rgba(95,225,127,0.13); }
+  #net-toggle button.active { background: var(--color-accent); color: #0a0d12; font-weight: 700; }
+  .copy-btn.copied       { color: var(--color-accent); border-color: var(--color-accent); background: rgba(95,225,127,0.13); }
+</style>
+
+<!-- Mermaid for inline diagrams -->
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: "base",
+    themeVariables: {
+      darkMode: true,
+      background: "#0d1015",
+      primaryColor: "#1b2230",
+      primaryTextColor: "#e8edf5",
+      primaryBorderColor: "#2c3645",
+      lineColor: "#5b6577",
+      secondaryColor: "#1d2632",
+      tertiaryColor: "#13181f",
+      fontFamily: "Inter, sans-serif",
+    },
+    flowchart: { curve: "basis", padding: 18 },
+  });
+</script>
+</head>
+
+<body class="font-sans antialiased pb-24">
+
+<!-- ============================================================ -->
+<!-- Hero -->
+<!-- ============================================================ -->
+<header class="border-b border-border py-20 px-6
+                [background:radial-gradient(900px_400px_at_80%_-10%,rgba(95,225,127,0.08),transparent_60%),radial-gradient(700px_300px_at_10%_0%,rgba(108,182,255,0.06),transparent_60%)]">
+  <div class="wrap">
+    <div class="font-mono text-accent text-xs tracking-[0.15em] uppercase mb-3.5">Proxmox VE · Cloud-Init</div>
+    <h1 class="text-5xl font-extrabold tracking-tight leading-[1.08] m-0 mb-3.5">
+      From an <span class="text-accent">empty VM</span> to a configured server in <span class="text-accent">30 seconds</span>.
+    </h1>
+    <p class="text-lg text-text-dim max-w-[620px] m-0 mb-7">
+      A practical, opinionated guide to building Cloud-Init templates that make every future VM instant to provision, identical at the base, and trivial to script.
+    </p>
+    <div class="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3.5 max-w-[700px]">
+      <div class="bg-bg-elev border border-border rounded-[10px] px-4 py-3.5">
+        <span class="block font-mono font-bold text-[22px] text-accent">~30s</span>
+        <span class="text-xs text-text-dim uppercase tracking-[0.06em]">clone to SSH</span>
+      </div>
+      <div class="bg-bg-elev border border-border rounded-[10px] px-4 py-3.5">
+        <span class="block font-mono font-bold text-[22px] text-accent">3</span>
+        <span class="text-xs text-text-dim uppercase tracking-[0.06em]">commands per VM</span>
+      </div>
+      <div class="bg-bg-elev border border-border rounded-[10px] px-4 py-3.5">
+        <span class="block font-mono font-bold text-[22px] text-accent">600 MB</span>
+        <span class="text-xs text-text-dim uppercase tracking-[0.06em]">cloud image vs 3 GB ISO</span>
+      </div>
+      <div class="bg-bg-elev border border-border rounded-[10px] px-4 py-3.5">
+        <span class="block font-mono font-bold text-[22px] text-accent">1×</span>
+        <span class="text-xs text-text-dim uppercase tracking-[0.06em]">build, ∞× reuse</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============================================================ -->
+<!-- Sticky TOC -->
+<!-- ============================================================ -->
+<nav class="sticky top-0 z-50 bg-bg/95 backdrop-blur-md border-b border-border">
+  <ul class="list-none flex gap-1 m-0 py-3 px-6 overflow-x-auto max-w-[1080px] mx-auto">
+    <li><a class="text-text-dim no-underline text-[13px] px-3 py-1.5 rounded-md whitespace-nowrap transition-colors hover:text-text hover:bg-bg-elev" href="#why">Why</a></li>
+    <li><a class="text-text-dim no-underline text-[13px] px-3 py-1.5 rounded-md whitespace-nowrap transition-colors hover:text-text hover:bg-bg-elev" href="#mental-model">Mental model</a></li>
+    <li><a class="text-text-dim no-underline text-[13px] px-3 py-1.5 rounded-md whitespace-nowrap transition-colors hover:text-text hover:bg-bg-elev" href="#workflow">Workflow</a></li>
+    <li><a class="text-text-dim no-underline text-[13px] px-3 py-1.5 rounded-md whitespace-nowrap transition-colors hover:text-text hover:bg-bg-elev" href="#build">Build a template</a></li>
+    <li><a class="text-text-dim no-underline text-[13px] px-3 py-1.5 rounded-md whitespace-nowrap transition-colors hover:text-text hover:bg-bg-elev" href="#tiers">Size tiers</a></li>
+    <li><a class="text-text-dim no-underline text-[13px] px-3 py-1.5 rounded-md whitespace-nowrap transition-colors hover:text-text hover:bg-bg-elev" href="#builder">Command builder</a></li>
+    <li><a class="text-text-dim no-underline text-[13px] px-3 py-1.5 rounded-md whitespace-nowrap transition-colors hover:text-text hover:bg-bg-elev" href="#knobs">Cloud-init knobs</a></li>
+    <li><a class="text-text-dim no-underline text-[13px] px-3 py-1.5 rounded-md whitespace-nowrap transition-colors hover:text-text hover:bg-bg-elev" href="#tips">15 tips</a></li>
+    <li><a class="text-text-dim no-underline text-[13px] px-3 py-1.5 rounded-md whitespace-nowrap transition-colors hover:text-text hover:bg-bg-elev" href="#snippets">Custom snippets</a></li>
+    <li><a class="text-text-dim no-underline text-[13px] px-3 py-1.5 rounded-md whitespace-nowrap transition-colors hover:text-text hover:bg-bg-elev" href="#troubleshoot">Troubleshooting</a></li>
+  </ul>
+</nav>
+
+<!-- ============================================================ -->
+<!-- 01 Why bother -->
+<!-- ============================================================ -->
+<section id="why" class="py-16 border-b border-border">
+  <div class="wrap-narrow">
+    <h2 class="text-3xl font-extrabold tracking-tight m-0 mb-2"><span class="font-mono text-accent font-medium mr-3 text-[22px]">01</span>Why bother</h2>
+    <p class="text-text-faint text-sm font-mono mb-8"># the case for cloud-init templates</p>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div class="card-warn">
+        <span class="card-tag bg-accent-warn !text-[#1a1208] font-bold">Without templates</span>
+        <h3 class="text-xl font-bold tracking-tight m-0 mt-0 mb-2.5">Every VM is artisanal</h3>
+        <ul class="pl-4.5 m-0 mt-3 text-text-dim space-y-1.5">
+          <li>10+ minutes clicking through the installer per VM</li>
+          <li>Each VM ends up subtly different — forgot agent here, wrong timezone there</li>
+          <li>SSH keys, hostnames, users set manually</li>
+          <li>No way to script "spin up a new box" reliably</li>
+          <li>Fleet drift over time</li>
+        </ul>
+      </div>
+      <div class="card-accent">
+        <span class="card-tag bg-accent !text-[#0a0d12] font-bold">With cloud-init</span>
+        <h3 class="text-xl font-bold tracking-tight m-0 mt-0 mb-2.5">Every VM is reproducible</h3>
+        <ul class="pl-4.5 m-0 mt-3 text-text-dim space-y-1.5">
+          <li><code class="icode">qm clone + qm set + qm start</code> → SSH-ready</li>
+          <li>Identical, known-good base for every VM</li>
+          <li>User / IP / SSH keys / hostname / packages declarative</li>
+          <li>Automation-friendly — entire fleet rebuildable from scripts</li>
+          <li>Snapshot the template; pin to a version; roll back trivially</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 02 Mental model -->
+<!-- ============================================================ -->
+<section id="mental-model" class="py-16 border-b border-border">
+  <div class="wrap-narrow">
+    <h2 class="text-3xl font-extrabold tracking-tight m-0 mb-2"><span class="font-mono text-accent font-medium mr-3 text-[22px]">02</span>Mental model</h2>
+    <p class="text-text-faint text-sm font-mono mb-8"># two Ubuntu "images" that look similar but behave nothing alike</p>
+
+    <p class="text-text-dim mb-5">The single most common mistake: grabbing the installer ISO when you wanted the cloud image. They have similar names but are designed for completely different purposes.</p>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div class="card-warn">
+        <span class="card-tag bg-accent-warn !text-[#1a1208] font-bold">Installer ISO</span>
+        <h3 class="text-xl font-bold tracking-tight m-0 mt-0 mb-2.5">ubuntu-26.04-live-server.iso</h3>
+        <p class="font-mono text-xs text-text-faint">~3 GB · graphical / TUI installer · cloud-init not pre-wired</p>
+        <p class="text-text-dim mt-3">What it is: a bootable installer. You boot it, click through "language → keyboard → partitions → user", and at the end you have Ubuntu installed.</p>
+        <p class="text-text-dim mt-2"><strong class="text-text font-semibold">Use for</strong>: special-case installs (custom partitioning, encrypted disks), or when no cloud image exists.</p>
+      </div>
+      <div class="card-accent">
+        <span class="card-tag bg-accent !text-[#0a0d12] font-bold">Cloud image</span>
+        <h3 class="text-xl font-bold tracking-tight m-0 mt-0 mb-2.5">ubuntu-26.04-server-cloudimg.img</h3>
+        <p class="font-mono text-xs text-text-faint">~600 MB · pre-installed minimal Ubuntu · cloud-init ready</p>
+        <p class="text-text-dim mt-3">What it is: a frozen post-install Ubuntu disk. Already booted once at Canonical's build farm. You import it and cloud-init does the per-VM configuration on first boot.</p>
+        <p class="text-text-dim mt-2"><strong class="text-text font-semibold">Use for</strong>: 95% of all VMs. Always reach for this first.</p>
+      </div>
+    </div>
+
+    <div class="callout-base mt-5">
+      <p class="m-0 text-text"><strong>Source URLs</strong>:<br>
+        Ubuntu — <code class="icode">cloud-images.ubuntu.com/releases/&lt;version&gt;/release/</code><br>
+        Debian — <code class="icode">cloud.debian.org/images/cloud/</code></p>
+    </div>
+
+    <h3 class="text-xl font-bold tracking-tight m-0 mt-7 mb-2.5">amd64 vs amd64v3</h3>
+    <p class="text-text-dim">Ubuntu publishes two server cloud images per release. <strong class="text-text font-semibold">Use <code class="icode">amd64v3</code> if your host CPU supports it</strong> — same Ubuntu, but glibc / OpenSSL / libs are compiled for the x86-64-v3 microarch level (AVX2, BMI1/2, FMA). Expect 5–15% wins in CPU-bound paths.</p>
+    <table class="knob-table">
+      <thead><tr><th>Variant</th><th>Target</th><th>Compatible CPUs</th></tr></thead>
+      <tbody>
+        <tr><td>amd64.img</td><td>baseline x86-64</td><td>any x86-64 CPU since 2003</td></tr>
+        <tr><td>amd64v3.img</td><td>x86-64-v3</td><td>Intel Haswell (2013+) / AMD Zen (2017+) and newer</td></tr>
+      </tbody>
+    </table>
+    <p class="text-text-dim">Verify support on the PVE host:</p>
+    <div class="code-block">
+      <div class="code-header"><span class="text-accent font-medium">bash · check microarch level</span><button class="copy-btn" data-copy>Copy</button></div>
+      <pre class="code-pre"><span class="tok-cmd">/usr/lib64/ld-linux-x86-64.so.2</span> <span class="tok-flag">--help</span> | grep <span class="tok-str">'x86-64-v'</span></pre>
+    </div>
+    <p class="text-text-dim">If you see <code class="icode">x86-64-v3 (supported, searched)</code>, you're good. This guide uses <code class="icode">amd64v3</code> throughout — if you're on older hardware, swap the filename for <code class="icode">amd64</code>.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 03 Workflow -->
+<!-- ============================================================ -->
+<section id="workflow" class="py-16 border-b border-border">
+  <div class="wrap">
+    <h2 class="text-3xl font-extrabold tracking-tight m-0 mb-2"><span class="font-mono text-accent font-medium mr-3 text-[22px]">03</span>The workflow</h2>
+    <p class="text-text-faint text-sm font-mono mb-8"># one-time prep, then infinite fast clones</p>
+
+    <div class="bg-bg-elev border border-border rounded-xl p-5.5 my-5.5">
+      <pre class="mermaid">
+flowchart LR
+    A[Download<br/>cloud image] --> B[virt-customize<br/>pre-bake packages]
+    B --> C[Create<br/>template VM]
+    C --> D[qm template<br/>· protection on]
+    D --> E[Template<br/>VMID 9000]
+    E -.clone.-> F1[VM 113<br/>db-prod]
+    E -.clone.-> F2[VM 114<br/>web-app]
+    E -.clone.-> F3[VM 115<br/>monitoring]
+    F1 --> G1[SSH-ready<br/>~30s]
+    F2 --> G2[SSH-ready<br/>~30s]
+    F3 --> G3[SSH-ready<br/>~30s]
+
+    style A fill:#1d2632,stroke:#2c3645
+    style B fill:#1d2632,stroke:#2c3645
+    style C fill:#1d2632,stroke:#2c3645
+    style D fill:#1d2632,stroke:#2c3645
+    style E fill:#1a2f1f,stroke:#5fe17f,color:#5fe17f
+    style F1 fill:#13181f,stroke:#3a4459
+    style F2 fill:#13181f,stroke:#3a4459
+    style F3 fill:#13181f,stroke:#3a4459
+    style G1 fill:#1a2f1f,stroke:#5fe17f
+    style G2 fill:#1a2f1f,stroke:#5fe17f
+    style G3 fill:#1a2f1f,stroke:#5fe17f
+      </pre>
+      <div class="text-xs text-text-faint font-mono text-center mt-3">build the template once → clone forever</div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div class="card-base">
+        <span class="card-tag">One-time</span>
+        <h3 class="text-xl font-bold tracking-tight m-0 mt-0 mb-2.5">Template build · ~5 min</h3>
+        <ol class="pl-4.5 m-0 mt-3 text-text-dim space-y-1.5 list-decimal">
+          <li>Download cloud image</li>
+          <li>Customize offline with <code class="icode">virt-customize</code></li>
+          <li>Create template VM + cloud-init drive</li>
+          <li>Lock with <code class="icode">qm template</code></li>
+        </ol>
+      </div>
+      <div class="card-base">
+        <span class="card-tag">Every VM after</span>
+        <h3 class="text-xl font-bold tracking-tight m-0 mt-0 mb-2.5">Per-clone · ~30 sec</h3>
+        <ol class="pl-4.5 m-0 mt-3 text-text-dim space-y-1.5 list-decimal">
+          <li><code class="icode">qm clone 9000 &lt;id&gt; --name &lt;n&gt;</code></li>
+          <li><code class="icode">qm resize &lt;id&gt; scsi0 +97G</code></li>
+          <li><code class="icode">qm set &lt;id&gt; --ciuser ... --sshkey ... --ipconfig0 ...</code></li>
+          <li><code class="icode">qm start &lt;id&gt;</code></li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 04 Build the template -->
+<!-- ============================================================ -->
+<section id="build" class="py-16 border-b border-border">
+  <div class="wrap-narrow">
+    <h2 class="text-3xl font-extrabold tracking-tight m-0 mb-2"><span class="font-mono text-accent font-medium mr-3 text-[22px]">04</span>Build the template</h2>
+    <p class="text-text-faint text-sm font-mono mb-8"># do this once on the Proxmox host</p>
+
+    <h3 class="text-xl font-bold tracking-tight m-0 mt-7 mb-2.5">1. Install prerequisites</h3>
+    <div class="code-block">
+      <div class="code-header"><span class="text-accent font-medium">bash · on PVE host</span><button class="copy-btn" data-copy>Copy</button></div>
+      <pre class="code-pre"><span class="tok-cmd">apt</span> install <span class="tok-flag">-y</span> libguestfs-tools</pre>
+    </div>
+    <p class="text-text-dim"><code class="icode">virt-customize</code> lets you modify a disk image without booting it — install packages, run commands, clear identity, all offline. Big speed win over booting and clicking.</p>
+
+    <h3 class="text-xl font-bold tracking-tight m-0 mt-7 mb-2.5">2. Download the cloud image</h3>
+    <div class="code-block">
+      <div class="code-header"><span class="text-accent font-medium">bash</span><button class="copy-btn" data-copy>Copy</button></div>
+      <pre class="code-pre"><span class="tok-cmd">cd</span> /var/lib/vz/template/iso/
+<span class="tok-cmd">wget</span> https://cloud-images.ubuntu.com/releases/26.04/release/ubuntu-26.04-server-cloudimg-amd64v3.img</pre>
+    </div>
+
+    <h3 class="text-xl font-bold tracking-tight m-0 mt-7 mb-2.5">3. Pre-bake (keep it minimal)</h3>
+    <p class="text-text-dim">Keep the template lean. The template is the <strong class="text-text font-semibold">base</strong> — everything beyond a working Ubuntu that cloud-init can configure should come from <a class="text-accent hover:underline" href="../setup-vps.sh"><code class="icode">setup-vps.sh</code></a> after the VM boots.</p>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
+      <div class="card-base">
+        <span class="card-tag">Pre-bake handles</span>
+        <ul class="pl-4.5 m-0 mt-3 text-text-dim space-y-1.5">
+          <li><code class="icode">qemu-guest-agent</code> (PVE needs it)</li>
+          <li>Cloud-init datasource pinning (kills 60–90s probe)</li>
+          <li>Machine-id + SSH host key clears</li>
+          <li>Serial console getty</li>
+          <li><code class="icode">curl</code> + <code class="icode">ca-certificates</code> so the first command works</li>
+        </ul>
+      </div>
+      <div class="card-accent">
+        <span class="card-tag bg-accent !text-[#0a0d12] font-bold">setup-vps.sh handles</span>
+        <ul class="pl-4.5 m-0 mt-3 text-text-dim space-y-1.5">
+          <li>Common tools, mosh, zsh, dev tools</li>
+          <li>Docker + Compose</li>
+          <li>Tailscale</li>
+          <li>UFW + fail2ban (with the rules <em>this</em> VM needs)</li>
+          <li>Per-user: NVM, UV, Bun, Oh My Zsh, dotfiles, Claude Code…</li>
+          <li>Interactive: pick components per VM</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout-base">
+      <p class="m-0 text-text"><strong>Why so minimal?</strong> One source of truth (<code class="icode">setup-vps.sh</code>). Clean template that boots fast. Component choice per VM — one gets Docker, another doesn't. No drift between the template and the install script.</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header"><span class="text-accent font-medium">bash · virt-customize</span><button class="copy-btn" data-copy>Copy</button></div>
+      <pre class="code-pre"><span class="tok-var">IMG</span>=/var/lib/vz/template/iso/ubuntu-26.04-server-cloudimg-amd64v3.img
+
+<span class="tok-cmd">virt-customize</span> <span class="tok-flag">-a</span> <span class="tok-str">"$IMG"</span> \
+  <span class="tok-flag">--install</span> qemu-guest-agent,ca-certificates,curl \
+  <span class="tok-flag">--run-command</span> <span class="tok-str">'systemctl enable qemu-guest-agent'</span> \
+  <span class="tok-flag">--run-command</span> <span class="tok-str">'systemctl enable serial-getty@ttyS0.service'</span> \
+  <span class="tok-flag">--truncate</span> /etc/machine-id \
+  <span class="tok-flag">--delete</span> /var/lib/dbus/machine-id \
+  <span class="tok-flag">--run-command</span> <span class="tok-str">'rm -f /etc/ssh/ssh_host_*'</span> \
+  <span class="tok-flag">--firstboot-command</span> <span class="tok-str">'dpkg-reconfigure openssh-server'</span> \
+  <span class="tok-flag">--write</span> <span class="tok-str">'/etc/cloud/cloud.cfg.d/99_pve.cfg:datasource_list: [ NoCloud, ConfigDrive ]'</span></pre>
+    </div>
+
+    <p class="text-text-dim">What each line does:</p>
+    <ul class="pl-5 text-text-dim space-y-1">
+      <li><code class="icode">--install qemu-guest-agent,ca-certificates,curl</code> — agent is required for PVE; <code class="icode">curl</code> + <code class="icode">ca-certificates</code> so <code class="icode">curl ... setup-vps.sh | sudo bash</code> works on first SSH.</li>
+      <li><code class="icode">--run-command 'systemctl enable qemu-guest-agent'</code> — must be enabled in the <em>guest</em>, not just in PVE.</li>
+      <li><code class="icode">--run-command 'systemctl enable serial-getty@ttyS0.service'</code> — serial console works on first boot (lifeline when SSH breaks).</li>
+      <li><code class="icode">--truncate /etc/machine-id</code> + <code class="icode">--delete /var/lib/dbus/machine-id</code> — every clone generates its own machine-id on first boot (see Tip 6).</li>
+      <li><code class="icode">--run-command 'rm -f /etc/ssh/ssh_host_*'</code> — same idea for SSH host keys.</li>
+      <li><code class="icode">--firstboot-command 'dpkg-reconfigure openssh-server'</code> — regenerates SSH host keys on first boot of each clone.</li>
+      <li><code class="icode">--write /etc/cloud/cloud.cfg.d/99_pve.cfg</code> — restricts cloud-init to NoCloud/ConfigDrive; kills 60–90s of metadata probing.</li>
+    </ul>
+    <p class="text-text-dim">This adds maybe ~20 MB to the cloud image. Template stays under ~850 MB.</p>
+
+    <h4 class="text-[15px] font-bold uppercase tracking-wider text-text-dim mt-6 mb-3">The complete flow</h4>
+    <div class="bg-bg-elev border border-border rounded-xl p-5.5 my-5.5">
+      <pre class="mermaid">
+flowchart LR
+    A[Clone template] --> B[cloud-init<br/>user · SSH key · network]
+    B --> C[Boot · ~30s]
+    C --> D[SSH in as your user]
+    D --> E[Run setup-vps.sh<br/>· interactive component picker<br/>· installs Docker, dev tools, dotfiles, etc.]
+    E --> F[Fully-configured VM]
+
+    style A fill:#1d2632,stroke:#2c3645
+    style B fill:#1d2632,stroke:#2c3645
+    style C fill:#1d2632,stroke:#2c3645
+    style D fill:#1d2632,stroke:#2c3645
+    style E fill:#1a2f1f,stroke:#5fe17f,color:#5fe17f
+    style F fill:#1a2f1f,stroke:#5fe17f
+      </pre>
+      <div class="text-xs text-text-faint font-mono text-center mt-3">cloud-init = thin base · setup-vps.sh = the actual install</div>
+    </div>
+
+    <div class="callout-danger">
+      <p class="m-0 text-text"><strong>Why clear machine-id and SSH host keys?</strong> Cloud images carry identity that <em>must not</em> be cloned. Two VMs with the same <code class="icode">/etc/machine-id</code> fight over DHCP leases and corrupt each other's journal. Two VMs with the same SSH host keys cause your <code class="icode">known_hosts</code> to scream. Always clear; regenerate on first boot.</p>
+    </div>
+
+    <h3 class="text-xl font-bold tracking-tight m-0 mt-7 mb-2.5">4. Create the template VM</h3>
+    <div class="code-block">
+      <div class="code-header"><span class="text-accent font-medium">bash · qm</span><button class="copy-btn" data-copy>Copy</button></div>
+      <pre class="code-pre"><span class="tok-var">VMID</span>=9000
+
+<span class="tok-cmd">qm create</span> <span class="tok-var">$VMID</span> \
+  <span class="tok-flag">--name</span> tmpl-ubuntu-26.04-cloudinit \
+  <span class="tok-flag">--memory</span> 2048 <span class="tok-flag">--balloon</span> 0 \
+  <span class="tok-flag">--cores</span> 2 <span class="tok-flag">--cpu</span> host \
+  <span class="tok-flag">--net0</span> virtio,bridge=vmbr0 \
+  <span class="tok-flag">--scsihw</span> virtio-scsi-single \
+  <span class="tok-flag">--agent</span> enabled=1 \
+  <span class="tok-flag">--ostype</span> l26 \
+  <span class="tok-flag">--serial0</span> socket <span class="tok-flag">--vga</span> serial0 \
+  <span class="tok-flag">--tags</span> template,ubuntu,2604
+
+<span class="tok-comment"># import the customized cloud image as the boot disk</span>
+<span class="tok-cmd">qm set</span> <span class="tok-var">$VMID</span> <span class="tok-flag">--scsi0</span> local-lvm:0,import-from=<span class="tok-var">$IMG</span>,discard=on,ssd=1,iothread=1,cache=none
+
+<span class="tok-comment"># cloud-init drive — this is where cloud-init reads config from</span>
+<span class="tok-cmd">qm set</span> <span class="tok-var">$VMID</span> <span class="tok-flag">--ide2</span> local-lvm:cloudinit
+<span class="tok-cmd">qm set</span> <span class="tok-var">$VMID</span> <span class="tok-flag">--boot</span> order=scsi0
+
+<span class="tok-comment"># bake in default SSH key — every clone inherits it</span>
+<span class="tok-cmd">qm set</span> <span class="tok-var">$VMID</span> <span class="tok-flag">--sshkey</span> /root/.ssh/authorized_keys
+
+<span class="tok-comment"># convert to template and lock</span>
+<span class="tok-cmd">qm template</span> <span class="tok-var">$VMID</span>
+<span class="tok-cmd">qm set</span> <span class="tok-var">$VMID</span> <span class="tok-flag">--protection</span> 1</pre>
+    </div>
+
+    <h3 class="text-xl font-bold tracking-tight m-0 mt-7 mb-2.5">5. Smoke-test with a throwaway clone</h3>
+    <p class="text-text-dim">60 seconds of pre-flight beats finding a typo at the worst possible moment.</p>
+    <div class="code-block">
+      <div class="code-header"><span class="text-accent font-medium">bash · sanity check</span><button class="copy-btn" data-copy>Copy</button></div>
+      <pre class="code-pre"><span class="tok-cmd">qm clone</span> 9000 999 <span class="tok-flag">--name</span> test-clone
+<span class="tok-cmd">qm set</span> 999 <span class="tok-flag">--protection</span> 0 <span class="tok-flag">--ciuser</span> ericwu <span class="tok-flag">--ipconfig0</span> ip=dhcp
+<span class="tok-cmd">qm start</span> 999
+<span class="tok-cmd">sleep</span> 30
+
+<span class="tok-comment"># grab the IP from PVE UI or via agent:</span>
+<span class="tok-cmd">qm guest cmd</span> 999 network-get-interfaces | grep ip-address
+
+<span class="tok-comment"># try SSH; if it works, cleanup:</span>
+<span class="tok-cmd">qm stop</span> 999 && <span class="tok-cmd">qm destroy</span> 999 <span class="tok-flag">--purge</span> <span class="tok-flag">--destroy-unreferenced-disks</span> 1</pre>
+    </div>
+
+    <div class="callout-warn">
+      <p class="m-0 text-text"><strong>Why <code class="icode">--protection 0</code> on the clone?</strong> Some Proxmox versions copy the template's <code class="icode">protection: 1</code> flag into the clone, which then refuses <code class="icode">qm destroy</code>. Clearing it explicitly makes cleanup just work. If you ever hit <em>"cannot remove VM &lt;id&gt; - protection mode enabled"</em>, run <code class="icode">qm set &lt;vmid&gt; --protection 0</code> first.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 05 VM size tiers -->
+<!-- ============================================================ -->
+<section id="tiers" class="py-16 border-b border-border">
+  <div class="wrap">
+    <h2 class="text-3xl font-extrabold tracking-tight m-0 mb-2"><span class="font-mono text-accent font-medium mr-3 text-[22px]">05</span>VM size tiers</h2>
+    <p class="text-text-faint text-sm font-mono mb-8"># sensible defaults — click one to load it into the builder ↓</p>
+
+    <p class="text-text-dim">"Regular VM" means different things. Here's a tiered set of defaults. All assume the cloud-init template (VMID 9000) is the base — clones override <code class="icode">--cores</code>, <code class="icode">--memory</code>, and disk size.</p>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 my-5.5">
+      <button class="tier-card bg-bg-elev border border-border rounded-xl p-4.5 text-left cursor-pointer font-sans text-text flex flex-col gap-1.5 transition-all hover:border-accent hover:-translate-y-0.5
+                     [&.loaded]:border-accent [&.loaded]:shadow-[0_0_0_2px_rgba(95,225,127,0.13)] [&.loaded_.tier-action]:before:content-['✓_'] [&.loaded_.tier-action]:before:text-accent" data-tier="tiny">
+        <div class="text-lg font-bold">Tiny</div>
+        <div class="font-mono text-[13px] text-accent font-medium">1 vCPU · 1 GB · 16 GB</div>
+        <div class="text-[12.5px] text-text-dim">DNS · agent · single-purpose daemon</div>
+        <div class="tier-action font-mono text-[11px] text-text-faint mt-2 tracking-[0.04em]">Load into builder ↓</div>
+      </button>
+      <button class="tier-card bg-gradient-to-b from-accent/[0.13] to-bg-elev/70 border border-accent/45 rounded-xl p-4.5 text-left cursor-pointer font-sans text-text flex flex-col gap-1.5 transition-all hover:border-accent hover:-translate-y-0.5
+                     [&.loaded]:border-accent [&.loaded]:shadow-[0_0_0_2px_rgba(95,225,127,0.13)] [&.loaded_.tier-action]:before:content-['✓_'] [&.loaded_.tier-action]:before:text-accent" data-tier="small">
+        <div class="text-lg font-bold">Small <span class="text-accent-warn text-sm align-[4px] ml-1">★</span></div>
+        <div class="font-mono text-[13px] text-accent font-medium">2 vCPU · 2 GB · 30 GB</div>
+        <div class="text-[12.5px] text-text-dim">App server · API · "give me a Linux box"</div>
+        <div class="tier-action font-mono text-[11px] text-accent mt-2 tracking-[0.04em]">Load into builder ↓</div>
+      </button>
+      <button class="tier-card bg-bg-elev border border-border rounded-xl p-4.5 text-left cursor-pointer font-sans text-text flex flex-col gap-1.5 transition-all hover:border-accent hover:-translate-y-0.5
+                     [&.loaded]:border-accent [&.loaded]:shadow-[0_0_0_2px_rgba(95,225,127,0.13)] [&.loaded_.tier-action]:before:content-['✓_'] [&.loaded_.tier-action]:before:text-accent" data-tier="medium">
+        <div class="text-lg font-bold">Medium</div>
+        <div class="font-mono text-[13px] text-accent font-medium">4 vCPU · 4 GB · 50 GB</div>
+        <div class="text-[12.5px] text-text-dim">Dev VM · side project · single-user service</div>
+        <div class="tier-action font-mono text-[11px] text-text-faint mt-2 tracking-[0.04em]">Load into builder ↓</div>
+      </button>
+      <button class="tier-card bg-bg-elev border border-border rounded-xl p-4.5 text-left cursor-pointer font-sans text-text flex flex-col gap-1.5 transition-all hover:border-accent hover:-translate-y-0.5
+                     [&.loaded]:border-accent [&.loaded]:shadow-[0_0_0_2px_rgba(95,225,127,0.13)] [&.loaded_.tier-action]:before:content-['✓_'] [&.loaded_.tier-action]:before:text-accent" data-tier="large">
+        <div class="text-lg font-bold">Large</div>
+        <div class="font-mono text-[13px] text-accent font-medium">8 vCPU · 8 GB · 100 GB</div>
+        <div class="text-[12.5px] text-text-dim">CI runner · build server · multi-service</div>
+        <div class="tier-action font-mono text-[11px] text-text-faint mt-2 tracking-[0.04em]">Load into builder ↓</div>
+      </button>
+    </div>
+
+    <div class="callout-base">
+      <p class="m-0 text-text"><strong>Small (2 / 2 / 30)</strong> is the right default if you can't decide. Bump if proven necessary, shrink if measured. CPU and RAM are hot-pluggable on virtio; disk grow needs <code class="icode">growpart + resize2fs</code> inside the guest.</p>
+    </div>
+
+    <h3 class="text-xl font-bold tracking-tight m-0 mt-7 mb-2.5">Universal settings (bake into the template)</h3>
+    <p class="text-text-dim">Apply to every VM via the template — every clone inherits.</p>
+    <table class="knob-table">
+      <thead><tr><th>Setting</th><th>Value</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>--cpu</td><td><code class="icode">host</code></td><td>All host CPU features available; best perf on single-host setups</td></tr>
+        <tr><td>--balloon</td><td><code class="icode">0</code></td><td>Ballooning steals memory unpredictably under load</td></tr>
+        <tr><td>--scsihw</td><td><code class="icode">virtio-scsi-single</code></td><td>Best perf, iothread support</td></tr>
+        <tr><td>disk options</td><td><code class="icode">cache=none,discard=on,ssd=1,iothread=1</code></td><td>DB-safe fsync, TRIM works, perf</td></tr>
+        <tr><td>--agent</td><td><code class="icode">enabled=1</code></td><td>PVE shows IPs, clean shutdowns, snapshot quiesce</td></tr>
+        <tr><td>--onboot</td><td><code class="icode">1</code></td><td>Comes back after host reboot</td></tr>
+        <tr><td>--net0</td><td><code class="icode">virtio,bridge=vmbr0</code></td><td>Paravirt is ~10× faster than e1000</td></tr>
+        <tr><td>--ostype</td><td><code class="icode">l26</code></td><td>Linux 2.6+; tells QEMU what HW to emulate</td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="text-xl font-bold tracking-tight m-0 mt-7 mb-2.5">Per-VM settings (set on every clone)</h3>
+    <table class="knob-table">
+      <thead><tr><th>Setting</th><th>Why per-VM</th></tr></thead>
+      <tbody>
+        <tr><td>--cores, --memory</td><td>Workload-dependent (see tier table)</td></tr>
+        <tr><td>disk size</td><td>Workload-dependent</td></tr>
+        <tr><td>--ciuser, --sshkey</td><td>Per-user / per-role</td></tr>
+        <tr><td>--ipconfig0</td><td>DHCP usually; static for things you need to find reliably</td></tr>
+        <tr><td>--cicustom</td><td>Role snippet (base-user, role-db, role-docker, …)</td></tr>
+        <tr><td>--tags</td><td>Searchability — e.g. <code class="icode">prod,db</code> or <code class="icode">dev,scratch</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="text-xl font-bold tracking-tight m-0 mt-7 mb-2.5">Capacity planning</h3>
+    <p class="text-text-dim">Pick a host reserve, then divide what's left across concurrent running VMs.</p>
+    <div class="code-block">
+      <div class="code-header"><span class="text-accent font-medium">formula</span><button class="copy-btn" data-copy>Copy</button></div>
+      <pre class="code-pre">host_total_ram    = &lt;total RAM, GB&gt;
+host_reserve      = 8 GB    <span class="tok-comment"># for PVE + ZFS ARC + page cache + headroom</span>
+allocatable_ram   = host_total_ram - host_reserve
+
+max_running_VMs  ≈ allocatable_ram / avg_vm_ram</pre>
+    </div>
+    <p class="text-text-dim">Example on a 96 GB host (reserve 8 GB → 88 GB allocatable):</p>
+    <ul class="pl-5 text-text-dim space-y-1">
+      <li><strong class="text-text font-semibold">Small</strong> (2 GB each) → up to ~44 concurrent VMs</li>
+      <li><strong class="text-text font-semibold">Medium</strong> (4 GB each) → up to ~22</li>
+      <li><strong class="text-text font-semibold">Large</strong> (8 GB each) → up to ~11</li>
+    </ul>
+    <p class="text-text-dim">CPU is far less of a constraint. 2–3× overcommit on vCPUs is comfortable for typical workloads. Only pin / reserve cores for latency-sensitive guests. Disk: thin provisioning means you pay for what's written — watch the thin-pool fill ratio more than per-VM sizes (going over physical disk corrupts every guest).</p>
+
+    <h3 class="text-xl font-bold tracking-tight m-0 mt-7 mb-2.5">Static vs DHCP — when to bother</h3>
+    <p class="text-text-dim">Set a static IP via <code class="icode">--ipconfig0 ip=&lt;cidr&gt;,gw=&lt;gw&gt;</code> for VMs you need to find reliably:</p>
+    <ul class="pl-5 text-text-dim space-y-1">
+      <li>Database servers</li>
+      <li>Reverse proxies / ingress</li>
+      <li>DNS servers</li>
+      <li>Monitoring / log collectors</li>
+      <li>Anything referenced by hostname or IP in another VM's config</li>
+    </ul>
+    <p class="text-text-dim">DHCP is fine for everything else — CI runners, scratch VMs, devboxes.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 06 Command builder -->
+<!-- ============================================================ -->
+<section id="builder" class="py-16 border-b border-border">
+  <div class="wrap">
+    <h2 class="text-3xl font-extrabold tracking-tight m-0 mb-2"><span class="font-mono text-accent font-medium mr-3 text-[22px]">06</span>Command builder</h2>
+    <p class="text-text-faint text-sm font-mono mb-8"># punch in your numbers, get the commands</p>
+
+    <div class="grid grid-cols-1 md:grid-cols-[360px_1fr] gap-6 my-6">
+      <!-- form -->
+      <div class="bg-bg-elev border border-border rounded-xl p-5.5">
+        <!-- size preset fieldset -->
+        <fieldset class="border border-dashed border-border-bright rounded-md p-3 mb-3.5">
+          <legend class="text-[11px] text-text-dim px-1.5 font-mono uppercase tracking-[0.08em]">Size preset</legend>
+
+          <!-- segmented control -->
+          <div class="grid grid-cols-5 bg-[#0a0d13] border border-border-bright rounded-[7px] p-0.5 gap-0.5" id="seg-control">
+            <button type="button" data-tier="tiny"   data-builder-preset class="seg-btn bg-transparent border-0 px-1 py-1.5 font-sans text-text-dim text-xs font-semibold tracking-[0.01em] cursor-pointer rounded-[5px] transition-colors whitespace-nowrap inline-flex items-center justify-center gap-1 relative hover:text-text">Tiny</button>
+            <button type="button" data-tier="small"  data-builder-preset class="seg-btn bg-transparent border-0 px-1 py-1.5 font-sans text-text-dim text-xs font-semibold tracking-[0.01em] cursor-pointer rounded-[5px] transition-colors whitespace-nowrap inline-flex items-center justify-center gap-1 relative hover:text-text before:content-[''] before:absolute before:top-1 before:right-1 before:w-1 before:h-1 before:rounded-full before:bg-accent">Small <span class="text-accent-warn text-[10px]">★</span></button>
+            <button type="button" data-tier="medium" data-builder-preset class="seg-btn bg-transparent border-0 px-1 py-1.5 font-sans text-text-dim text-xs font-semibold tracking-[0.01em] cursor-pointer rounded-[5px] transition-colors whitespace-nowrap inline-flex items-center justify-center gap-1 relative hover:text-text">Medium</button>
+            <button type="button" data-tier="large"  data-builder-preset class="seg-btn bg-transparent border-0 px-1 py-1.5 font-sans text-text-dim text-xs font-semibold tracking-[0.01em] cursor-pointer rounded-[5px] transition-colors whitespace-nowrap inline-flex items-center justify-center gap-1 relative hover:text-text">Large</button>
+            <button type="button" data-tier="custom" data-builder-preset class="seg-btn bg-transparent border-0 px-1 py-1.5 font-sans text-text-dim text-xs font-semibold tracking-[0.01em] cursor-pointer rounded-[5px] transition-colors whitespace-nowrap inline-flex items-center justify-center gap-1 relative hover:text-text">Custom</button>
+          </div>
+          <div class="mt-2.5 flex flex-wrap gap-2 items-baseline text-xs" id="preset-readout">
+            <span class="r-name text-text font-semibold">Small <span class="text-accent-warn text-[11px] ml-0.5">★</span></span>
+            <span class="r-spec font-mono text-[11.5px] text-accent">2 vCPU · 2 GB RAM · 30 GB disk</span>
+          </div>
+        </fieldset>
+
+        <fieldset class="border border-dashed border-border-bright rounded-md p-3 mb-3.5">
+          <legend class="text-[11px] text-text-dim px-1.5 font-mono uppercase tracking-[0.08em]">IDs</legend>
+          <div class="grid grid-cols-2 gap-2.5 mb-3.5">
+            <div>
+              <label class="form-label" for="f-tmpl">Template VMID</label>
+              <input class="form-input" id="f-tmpl" type="number" value="9000" min="100" max="999999999" />
+            </div>
+            <div>
+              <label class="form-label" for="f-new">New VMID</label>
+              <input class="form-input" id="f-new" type="number" value="113" min="100" max="999999999" />
+            </div>
+          </div>
+          <div>
+            <label class="form-label" for="f-name">VM name</label>
+            <input class="form-input" id="f-name" type="text" value="db-prod" />
+          </div>
+        </fieldset>
+
+        <fieldset class="border border-dashed border-border-bright rounded-md p-3 mb-3.5">
+          <legend class="text-[11px] text-text-dim px-1.5 font-mono uppercase tracking-[0.08em]">Resources</legend>
+          <div class="grid grid-cols-2 gap-2.5 mb-3.5">
+            <div>
+              <label class="form-label" for="f-cores">vCPU cores</label>
+              <input class="form-input" id="f-cores" type="number" value="2" min="1" max="64" />
+            </div>
+            <div>
+              <label class="form-label" for="f-mem">RAM (MB)</label>
+              <input class="form-input" id="f-mem" type="number" value="2048" min="512" step="512" />
+            </div>
+          </div>
+          <div>
+            <label class="form-label" for="f-disk">Final disk size (GB)</label>
+            <input class="form-input" id="f-disk" type="number" value="30" min="10" max="10000" />
+            <div class="text-[11px] text-text-faint mt-1">cloud image is ~3.5G; we'll resize by the difference</div>
+          </div>
+        </fieldset>
+
+        <fieldset class="border border-dashed border-border-bright rounded-md p-3 mb-3.5">
+          <legend class="text-[11px] text-text-dim px-1.5 font-mono uppercase tracking-[0.08em]">User</legend>
+          <div class="mb-3.5">
+            <label class="form-label" for="f-user">ciuser</label>
+            <input class="form-input" id="f-user" type="text" value="ericwu" />
+          </div>
+          <div>
+            <label class="form-label" for="f-sshkey">SSH key file (on PVE host)</label>
+            <input class="form-input" id="f-sshkey" type="text" value="/root/.ssh/authorized_keys" />
+            <div class="text-[11px] text-text-faint mt-1">leave blank to inherit the template's default</div>
+          </div>
+        </fieldset>
+
+        <fieldset class="border border-dashed border-border-bright rounded-md p-3 mb-3.5">
+          <legend class="text-[11px] text-text-dim px-1.5 font-mono uppercase tracking-[0.08em]">Network</legend>
+          <div class="mb-3.5">
+            <label class="form-label">IP config</label>
+            <div class="inline-flex bg-[#0a0d13] border border-border-bright rounded-md p-0.5 gap-0.5" id="net-toggle">
+              <button class="bg-transparent border-0 text-text-dim px-3.5 py-1.5 font-mono text-xs rounded cursor-pointer transition-colors active:bg-accent active:text-[#0a0d12] [&.active]:bg-accent [&.active]:text-[#0a0d12] [&.active]:font-bold" data-net="dhcp">DHCP</button>
+              <button class="bg-transparent border-0 text-text-dim px-3.5 py-1.5 font-mono text-xs rounded cursor-pointer transition-colors active:bg-accent active:text-[#0a0d12] [&.active]:bg-accent [&.active]:text-[#0a0d12] [&.active]:font-bold" data-net="static">Static</button>
+            </div>
+          </div>
+          <div id="static-fields" class="hidden">
+            <div class="grid grid-cols-2 gap-2.5 mb-3.5">
+              <div>
+                <label class="form-label" for="f-ip">IP / CIDR</label>
+                <input class="form-input" id="f-ip" type="text" value="192.168.10.50/24" />
+              </div>
+              <div>
+                <label class="form-label" for="f-gw">Gateway</label>
+                <input class="form-input" id="f-gw" type="text" value="192.168.10.1" />
+              </div>
+            </div>
+          </div>
+          <div>
+            <label class="form-label" for="f-dns">DNS</label>
+            <input class="form-input" id="f-dns" type="text" value="1.1.1.1" />
+          </div>
+        </fieldset>
+
+        <fieldset class="border border-dashed border-border-bright rounded-md p-3">
+          <legend class="text-[11px] text-text-dim px-1.5 font-mono uppercase tracking-[0.08em]">Extras (optional)</legend>
+          <div class="mb-3.5">
+            <label class="form-label" for="f-snippet">Cloud-init user-data snippet</label>
+            <input class="form-input" id="f-snippet" type="text" placeholder="local:snippets/role-db.yaml" />
+            <div class="text-[11px] text-text-faint mt-1">leave blank to skip</div>
+          </div>
+          <div>
+            <label class="form-label" for="f-tags">Tags (comma-sep)</label>
+            <input class="form-input" id="f-tags" type="text" placeholder="db,prod" />
+          </div>
+        </fieldset>
+      </div>
+
+      <!-- preview -->
+      <div class="flex flex-col gap-3.5">
+        <div class="bg-bg-elev border border-border rounded-[10px] px-4 py-3.5 text-[13px] text-text-dim">
+          <strong class="text-text font-semibold">Preview</strong> — these commands will clone the template, resize the disk, set cloud-init params, and start the new VM. Total runtime on the host: ~30 seconds.
+          <span class="inline-block font-mono text-[11px] px-2 py-0.5 rounded bg-bg-elev-2 text-accent-info ml-1.5" id="badge-summary">DHCP · 2 vCPU · 2 GB · 30 GB</span>
+        </div>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="text-accent font-medium">bash · live · run on PVE host</span>
+            <button class="copy-btn" data-copy>Copy</button>
+          </div>
+          <pre class="code-pre" id="generated-cmd"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 07 Cloud-init knobs -->
+<!-- ============================================================ -->
+<section id="knobs" class="py-16 border-b border-border">
+  <div class="wrap-narrow">
+    <h2 class="text-3xl font-extrabold tracking-tight m-0 mb-2"><span class="font-mono text-accent font-medium mr-3 text-[22px]">07</span>Cloud-init knobs</h2>
+    <p class="text-text-faint text-sm font-mono mb-8"># reference of <code class="icode">qm set</code> flags that touch cloud-init</p>
+
+    <table class="knob-table">
+      <thead><tr><th>Flag</th><th>Purpose</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td>--ciuser</td><td>Username to create on first boot</td><td><code class="icode">--ciuser ericwu</code></td></tr>
+        <tr><td>--cipassword</td><td>Set user password (omit if using SSH keys)</td><td><code class="icode">--cipassword 'changeme'</code></td></tr>
+        <tr><td>--sshkey</td><td>Path to file with one or more public keys</td><td><code class="icode">--sshkey ~/.ssh/authorized_keys</code></td></tr>
+        <tr><td>--ipconfig0</td><td>Network for net0 — DHCP or static</td><td><code class="icode">ip=192.168.10.50/24,gw=192.168.10.1</code></td></tr>
+        <tr><td>--nameserver</td><td>DNS server(s), space-separated</td><td><code class="icode">--nameserver "1.1.1.1 8.8.8.8"</code></td></tr>
+        <tr><td>--searchdomain</td><td>DNS search domain</td><td><code class="icode">--searchdomain home.lan</code></td></tr>
+        <tr><td>--cicustom</td><td>Custom user-data YAML</td><td><code class="icode">"user=local:snippets/role-db.yaml"</code></td></tr>
+        <tr><td>--citype</td><td>Cloud-init flavor (default: nocloud)</td><td><code class="icode">--citype nocloud</code></td></tr>
+      </tbody>
+    </table>
+
+    <p class="text-text-dim">To inspect what cloud-init will hand to the guest on next boot:</p>
+    <div class="code-block">
+      <div class="code-header"><span class="text-accent font-medium">bash · inspect</span><button class="copy-btn" data-copy>Copy</button></div>
+      <pre class="code-pre"><span class="tok-cmd">qm cloudinit</span> dump <span class="tok-var">&lt;vmid&gt;</span> user
+<span class="tok-cmd">qm cloudinit</span> dump <span class="tok-var">&lt;vmid&gt;</span> network
+<span class="tok-cmd">qm cloudinit</span> dump <span class="tok-var">&lt;vmid&gt;</span> meta</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 08 15 tips -->
+<!-- ============================================================ -->
+<section id="tips" class="py-16 border-b border-border">
+  <div class="wrap">
+    <h2 class="text-3xl font-extrabold tracking-tight m-0 mb-2"><span class="font-mono text-accent font-medium mr-3 text-[22px]">08</span>15 tips for better templates</h2>
+    <p class="text-text-faint text-sm font-mono mb-8"># the things that separate "works" from "delightful"</p>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div class="tip-card"><div class="font-mono text-[11px] text-accent tracking-[0.1em]">TIP 01</div><h4 class="text-[15px] font-bold text-text mt-1.5 mb-2 m-0">Pre-bake packages with virt-customize</h4><p class="m-0 text-[13.5px] text-text-dim">Don't make every clone <code class="icode">apt install</code> the same packages on first boot. Bake them into the image once.</p></div>
+      <div class="tip-card"><div class="font-mono text-[11px] text-accent tracking-[0.1em]">TIP 02</div><h4 class="text-[15px] font-bold text-text mt-1.5 mb-2 m-0">Reserve a VMID range for templates</h4><p class="m-0 text-[13.5px] text-text-dim">Use 9000–9099 for templates so they sort together and a typo doesn't <code class="icode">qm destroy</code> the wrong VM.</p></div>
+      <div class="tip-card"><div class="font-mono text-[11px] text-accent tracking-[0.1em]">TIP 03</div><h4 class="text-[15px] font-bold text-text mt-1.5 mb-2 m-0">Pin CPU type intentionally</h4><p class="m-0 text-[13.5px] text-text-dim"><code class="icode">--cpu host</code> on single hosts. <code class="icode">--cpu x86-64-v3</code> if you'll cluster. Never the kvm64 default.</p></div>
+      <div class="tip-card"><div class="font-mono text-[11px] text-accent tracking-[0.1em]">TIP 04</div><h4 class="text-[15px] font-bold text-text mt-1.5 mb-2 m-0">Enable QEMU guest agent on both sides</h4><p class="m-0 text-[13.5px] text-text-dim">PVE side (<code class="icode">--agent enabled=1</code>) <em>and</em> guest side (install package, enable service). Without both, snapshots and IP reporting break.</p></div>
+      <div class="tip-card"><div class="font-mono text-[11px] text-accent tracking-[0.1em]">TIP 05</div><h4 class="text-[15px] font-bold text-text mt-1.5 mb-2 m-0">Pre-wire your SSH key on the template</h4><p class="m-0 text-[13.5px] text-text-dim"><code class="icode">qm set 9000 --sshkey ...</code> once. Every clone inherits it; override per-VM when needed.</p></div>
+      <div class="tip-card border-accent-danger/40"><div class="font-mono text-[11px] text-accent-danger tracking-[0.1em]">TIP 06 · CRITICAL</div><h4 class="text-[15px] font-bold text-text mt-1.5 mb-2 m-0">Clear machine-id and SSH host keys</h4><p class="m-0 text-[13.5px] text-text-dim">Otherwise every clone has the same identity. DHCP leases fight, SSH known_hosts breaks. Regenerate on first boot.</p></div>
+      <div class="tip-card"><div class="font-mono text-[11px] text-accent tracking-[0.1em]">TIP 07</div><h4 class="text-[15px] font-bold text-text mt-1.5 mb-2 m-0">Make serial console actually work</h4><p class="m-0 text-[13.5px] text-text-dim">Set <code class="icode">--serial0 socket --vga serial0</code> AND <code class="icode">systemctl enable serial-getty@ttyS0</code> in the guest. Your lifeline when SSH is broken.</p></div>
+      <div class="tip-card"><div class="font-mono text-[11px] text-accent tracking-[0.1em]">TIP 08</div><h4 class="text-[15px] font-bold text-text mt-1.5 mb-2 m-0">Keep template disk small; resize per clone</h4><p class="m-0 text-[13.5px] text-text-dim">Don't bloat the template. Linked clones from a small base are faster. Resize each VM to its actual need.</p></div>
+      <div class="tip-card"><div class="font-mono text-[11px] text-accent tracking-[0.1em]">TIP 09</div><h4 class="text-[15px] font-bold text-text mt-1.5 mb-2 m-0">Skip UEFI for Linux cloud images</h4><p class="m-0 text-[13.5px] text-text-dim">Ubuntu cloud images target BIOS. Going UEFI adds 4 MB EFI disk per VM and occasional boot quirks. Only use UEFI if you specifically need Secure Boot.</p></div>
+      <div class="tip-card"><div class="font-mono text-[11px] text-accent tracking-[0.1em]">TIP 10</div><h4 class="text-[15px] font-bold text-text mt-1.5 mb-2 m-0">Tag your templates</h4><p class="m-0 text-[13.5px] text-text-dim"><code class="icode">qm set 9000 --tags template,ubuntu,2604</code>. Searchable in UI and CLI. Huge ergonomics win at 30+ VMs.</p></div>
+      <div class="tip-card"><div class="font-mono text-[11px] text-accent tracking-[0.1em]">TIP 11</div><h4 class="text-[15px] font-bold text-text mt-1.5 mb-2 m-0">Lock the template against destroy</h4><p class="m-0 text-[13.5px] text-text-dim"><code class="icode">qm set 9000 --protection 1</code>. Cheap insurance — destroys now require <code class="icode">--purge --force</code>.</p></div>
+      <div class="tip-card"><div class="font-mono text-[11px] text-accent tracking-[0.1em]">TIP 12</div><h4 class="text-[15px] font-bold text-text mt-1.5 mb-2 m-0">Organize snippets by role</h4><p class="m-0 text-[13.5px] text-text-dim">Don't write one giant <code class="icode">userdata.yaml</code>. Make <code class="icode">base-user.yaml</code>, <code class="icode">role-db.yaml</code>, etc. Compose per VM.</p></div>
+      <div class="tip-card"><div class="font-mono text-[11px] text-accent tracking-[0.1em]">TIP 13</div><h4 class="text-[15px] font-bold text-text mt-1.5 mb-2 m-0">Sanity-test with a throwaway clone</h4><p class="m-0 text-[13.5px] text-text-dim">60 seconds of pre-flight beats finding a typo when you're under pressure to ship.</p></div>
+      <div class="tip-card"><div class="font-mono text-[11px] text-accent tracking-[0.1em]">TIP 14</div><h4 class="text-[15px] font-bold text-text mt-1.5 mb-2 m-0">Version templates, don't mutate them</h4><p class="m-0 text-[13.5px] text-text-dim">When 26.04.1 ships, make VMID 9001. Keep 9000 around. Easy rollback if 9001 has a regression.</p></div>
+      <div class="tip-card"><div class="font-mono text-[11px] text-accent tracking-[0.1em]">TIP 15</div><h4 class="text-[15px] font-bold text-text mt-1.5 mb-2 m-0">Document the template in its description</h4><p class="m-0 text-[13.5px] text-text-dim">Source URL, build date, baked packages, usage snippet — all in <code class="icode">--description</code>. Future-you will thank you in 6 months.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 09 Custom snippets -->
+<!-- ============================================================ -->
+<section id="snippets" class="py-16 border-b border-border">
+  <div class="wrap-narrow">
+    <h2 class="text-3xl font-extrabold tracking-tight m-0 mb-2"><span class="font-mono text-accent font-medium mr-3 text-[22px]">09</span>Custom user-data snippets</h2>
+    <p class="text-text-faint text-sm font-mono mb-8"># beyond flags — full cloud-init YAML</p>
+
+    <p class="text-text-dim">For "create user, install Docker, clone dotfiles on first boot" you write a YAML file and point cloud-init at it.</p>
+
+    <h3 class="text-xl font-bold tracking-tight m-0 mt-7 mb-2.5">One-time: enable snippets on the storage</h3>
+    <div class="code-block">
+      <div class="code-header"><span class="text-accent font-medium">bash</span><button class="copy-btn" data-copy>Copy</button></div>
+      <pre class="code-pre"><span class="tok-cmd">pvesm set</span> local <span class="tok-flag">--content</span> iso,backup,vztmpl,snippets</pre>
+    </div>
+    <p class="text-text-dim">Or via the UI: Datacenter → Storage → local → Edit → tick "Snippets".</p>
+
+    <h3 class="text-xl font-bold tracking-tight m-0 mt-7 mb-2.5">Example: base user (<code class="icode">/var/lib/vz/snippets/base-user.yaml</code>)</h3>
+    <div class="code-block">
+      <div class="code-header"><span class="text-accent font-medium">yaml · #cloud-config</span><button class="copy-btn" data-copy>Copy</button></div>
+      <pre class="code-pre">#cloud-config
+users:
+  - name: ericwu
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    groups: [sudo, docker]
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAA... ericwu@laptop
+
+disable_root: true
+timezone: America/Los_Angeles
+
+package_update: true
+packages:
+  - qemu-guest-agent
+  - git
+  - curl
+  - tmux
+  - htop
+
+runcmd:
+  - systemctl enable --now qemu-guest-agent
+  - sudo -u ericwu git clone https://github.com/tanker327/dotfiles.git /home/ericwu/dotfiles</pre>
+    </div>
+
+    <h3 class="text-xl font-bold tracking-tight m-0 mt-7 mb-2.5">Attach to a VM</h3>
+    <div class="code-block">
+      <div class="code-header"><span class="text-accent font-medium">bash</span><button class="copy-btn" data-copy>Copy</button></div>
+      <pre class="code-pre"><span class="tok-cmd">qm set</span> 113 <span class="tok-flag">--cicustom</span> <span class="tok-str">"user=local:snippets/base-user.yaml"</span></pre>
+    </div>
+
+    <h3 class="text-xl font-bold tracking-tight m-0 mt-7 mb-2.5">Debugging cloud-init inside a VM</h3>
+    <div class="code-block">
+      <div class="code-header"><span class="text-accent font-medium">bash · inside the guest</span><button class="copy-btn" data-copy>Copy</button></div>
+      <pre class="code-pre"><span class="tok-comment"># did it run?</span>
+<span class="tok-cmd">cloud-init</span> status <span class="tok-flag">--long</span>
+
+<span class="tok-comment"># what did it do?</span>
+<span class="tok-cmd">sudo</span> less /var/log/cloud-init.log
+<span class="tok-cmd">sudo</span> less /var/log/cloud-init-output.log
+
+<span class="tok-comment"># re-run from scratch (DESTRUCTIVE)</span>
+<span class="tok-cmd">sudo</span> cloud-init clean <span class="tok-flag">--logs --reboot</span></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 10 Troubleshooting -->
+<!-- ============================================================ -->
+<section id="troubleshoot" class="py-16">
+  <div class="wrap-narrow">
+    <h2 class="text-3xl font-extrabold tracking-tight m-0 mb-2"><span class="font-mono text-accent font-medium mr-3 text-[22px]">10</span>Troubleshooting</h2>
+    <p class="text-text-faint text-sm font-mono mb-8"># common failures, sorted by symptom</p>
+
+    <details class="acc bg-bg-elev border border-border rounded-lg my-2.5 overflow-hidden open:border-border-bright">
+      <summary class="cursor-pointer px-4.5 py-3.5 font-semibold text-text flex items-center justify-between">Cloud-init doesn't apply settings on first boot</summary>
+      <div class="px-4.5 pb-4.5 text-text-dim text-sm">
+        <p class="m-0 mt-0">Check, in order:</p>
+        <ol class="pl-5 mt-2 space-y-1 list-decimal">
+          <li><code class="icode">qm config &lt;vmid&gt;</code> shows the cloud-init drive (<code class="icode">ide2: local-lvm:cloudinit</code>)</li>
+          <li><code class="icode">qm cloudinit dump &lt;vmid&gt; user</code> returns sensible YAML</li>
+          <li>Inside the VM: <code class="icode">sudo cloud-init status --long</code> — if it says <code class="icode">disabled</code>, the image was built without cloud-init. Reinstall with <code class="icode">apt install cloud-init</code> and re-bake.</li>
+          <li>Inside the VM: <code class="icode">sudo less /var/log/cloud-init.log</code> for actual errors.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details class="acc bg-bg-elev border border-border rounded-lg my-2.5 overflow-hidden open:border-border-bright">
+      <summary class="cursor-pointer px-4.5 py-3.5 font-semibold text-text flex items-center justify-between">SSH connection fails right after clone</summary>
+      <div class="px-4.5 pb-4.5 text-text-dim text-sm">
+        <p class="m-0 mt-0">Three common causes:</p>
+        <ul class="pl-5 mt-2 space-y-1">
+          <li><strong class="text-text font-semibold">Wrong known_hosts</strong>: prior VM had the same IP / hostname. <code class="icode">ssh-keygen -R &lt;host-or-ip&gt;</code>.</li>
+          <li><strong class="text-text font-semibold">Host keys not regenerated</strong>: the template didn't clear them. Confirm with <code class="icode">ls -la /etc/ssh/ssh_host_*</code> inside the VM — mtimes should be recent.</li>
+          <li><strong class="text-text font-semibold">SSH not yet ready</strong>: wait 30s after <code class="icode">qm start</code>. Cloud-init runs before sshd is fully up.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="acc bg-bg-elev border border-border rounded-lg my-2.5 overflow-hidden open:border-border-bright">
+      <summary class="cursor-pointer px-4.5 py-3.5 font-semibold text-text flex items-center justify-between">Cloud-init takes 90+ seconds on first boot</summary>
+      <div class="px-4.5 pb-4.5 text-text-dim text-sm">
+        <p class="m-0 mt-0">cloud-init is probing AWS / Azure / GCE metadata endpoints that don't exist in your homelab. Restrict to NoCloud:</p>
+        <div class="code-block">
+          <div class="code-header"><span class="text-accent font-medium">bash · inside VM or via virt-customize</span><button class="copy-btn" data-copy>Copy</button></div>
+          <pre class="code-pre"><span class="tok-cmd">cat</span> &gt; /etc/cloud/cloud.cfg.d/99_pve.cfg &lt;&lt;EOF
+datasource_list: [ NoCloud, ConfigDrive ]
+EOF</pre>
+        </div>
+      </div>
+    </details>
+
+    <details class="acc bg-bg-elev border border-border rounded-lg my-2.5 overflow-hidden open:border-border-bright">
+      <summary class="cursor-pointer px-4.5 py-3.5 font-semibold text-text flex items-center justify-between">Disk doesn't expand to full size after resize</summary>
+      <div class="px-4.5 pb-4.5 text-text-dim text-sm">
+        <p class="m-0 mt-0">The Ubuntu cloud image includes <code class="icode">cloud-initramfs-growroot</code> which auto-grows on first boot. If not:</p>
+        <div class="code-block">
+          <div class="code-header"><span class="text-accent font-medium">bash · inside guest</span><button class="copy-btn" data-copy>Copy</button></div>
+          <pre class="code-pre"><span class="tok-cmd">sudo</span> growpart /dev/sda 1
+<span class="tok-cmd">sudo</span> resize2fs /dev/sda1   <span class="tok-comment"># or xfs_growfs / for XFS</span></pre>
+        </div>
+      </div>
+    </details>
+
+    <details class="acc bg-bg-elev border border-border rounded-lg my-2.5 overflow-hidden open:border-border-bright">
+      <summary class="cursor-pointer px-4.5 py-3.5 font-semibold text-text flex items-center justify-between">Cloned VM has same MAC as another (linked clones)</summary>
+      <div class="px-4.5 pb-4.5 text-text-dim text-sm">
+        <p class="m-0 mt-0">Full clones get a new MAC; linked clones share the original. Force regenerate:</p>
+        <div class="code-block">
+          <div class="code-header"><span class="text-accent font-medium">bash</span><button class="copy-btn" data-copy>Copy</button></div>
+          <pre class="code-pre"><span class="tok-cmd">qm set</span> <span class="tok-var">&lt;vmid&gt;</span> <span class="tok-flag">--net0</span> virtio,bridge=vmbr0,macaddr=auto</pre>
+        </div>
+      </div>
+    </details>
+
+    <details class="acc bg-bg-elev border border-border rounded-lg my-2.5 overflow-hidden open:border-border-bright">
+      <summary class="cursor-pointer px-4.5 py-3.5 font-semibold text-text flex items-center justify-between">I want to start completely over and re-run cloud-init</summary>
+      <div class="px-4.5 pb-4.5 text-text-dim text-sm">
+        <p class="m-0 mt-0">DESTRUCTIVE — re-creates the user, re-runs <code class="icode">runcmd</code>, etc. Use only on test VMs.</p>
+        <div class="code-block">
+          <div class="code-header"><span class="text-accent font-medium">bash · inside guest</span><button class="copy-btn" data-copy>Copy</button></div>
+          <pre class="code-pre"><span class="tok-cmd">sudo</span> cloud-init clean <span class="tok-flag">--logs</span>
+<span class="tok-cmd">sudo</span> rm <span class="tok-flag">-rf</span> /var/lib/cloud/
+<span class="tok-cmd">sudo</span> reboot</pre>
+        </div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<footer class="py-14 text-center text-text-faint text-[13px]">
+  <div class="wrap">
+    <p class="m-0">Companion HTML to <a class="text-text-dim hover:underline" href="./CLOUD-INIT-TEMPLATE.md">CLOUD-INIT-TEMPLATE.md</a> · <a class="text-text-dim hover:underline" href="./POST-CLONE-SETUP.md">POST-CLONE-SETUP.md</a> · <a class="text-text-dim hover:underline" href="./prepare-template.sh">prepare-template.sh</a></p>
+    <p class="mt-2 m-0">Built for the dotfiles repo. Open this file directly in a browser — no server required.</p>
+  </div>
+</footer>
+
+<script>
+  // ===== copy-to-clipboard =====
+  function flashCopied(btn) {
+    const original = btn.textContent;
+    btn.textContent = "✓ Copied";
+    btn.classList.add("copied");
+    setTimeout(() => {
+      btn.textContent = original;
+      btn.classList.remove("copied");
+    }, 1500);
+  }
+  document.querySelectorAll(".copy-btn[data-copy]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const codeBlock = btn.closest(".code-block");
+      const pre = codeBlock.querySelector("pre");
+      const text = pre.innerText;
+      try {
+        await navigator.clipboard.writeText(text);
+        flashCopied(btn);
+      } catch {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        flashCopied(btn);
+      }
+    });
+  });
+
+  // ===== command builder =====
+  const F = (id) => document.getElementById(id);
+  const out = F("generated-cmd");
+  const summary = F("badge-summary");
+  const staticFields = F("static-fields");
+  let netMode = "dhcp";
+
+  // Network DHCP/Static toggle
+  document.querySelectorAll("#net-toggle button").forEach((b) => {
+    b.addEventListener("click", () => {
+      document.querySelectorAll("#net-toggle button").forEach((x) => x.classList.remove("active"));
+      b.classList.add("active");
+      netMode = b.dataset.net;
+      staticFields.classList.toggle("hidden", netMode !== "static");
+      render();
+    });
+  });
+  // Set initial state on the DHCP button
+  document.querySelector('#net-toggle button[data-net="dhcp"]').classList.add("active");
+
+  function tok(text, cls) {
+    const esc = String(text).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+    return `<span class="${cls}">${esc}</span>`;
+  }
+
+  function render() {
+    const tmpl = parseInt(F("f-tmpl").value, 10) || 9000;
+    const newId = parseInt(F("f-new").value, 10) || 113;
+    const name = F("f-name").value || "new-vm";
+    const cores = parseInt(F("f-cores").value, 10) || 2;
+    const mem = parseInt(F("f-mem").value, 10) || 2048;
+    const disk = parseInt(F("f-disk").value, 10) || 30;
+    const user = F("f-user").value || "ericwu";
+    const sshkey = F("f-sshkey").value.trim();
+    const ip = F("f-ip").value || "192.168.10.50/24";
+    const gw = F("f-gw").value || "192.168.10.1";
+    const dns = F("f-dns").value || "1.1.1.1";
+    const snippet = F("f-snippet").value.trim();
+    const tags = F("f-tags").value.trim();
+
+    const grow = Math.max(disk - 4, 1);
+    const ipconfig = netMode === "dhcp" ? "ip=dhcp" : `ip=${ip},gw=${gw}`;
+
+    const lines = [];
+    lines.push(tok("# clone the template", "tok-comment"));
+    lines.push(`${tok("qm clone", "tok-cmd")} ${tmpl} ${newId} ${tok("--name", "tok-flag")} ${name}`);
+    lines.push("");
+    lines.push(tok(`# grow disk to ~${disk} GB`, "tok-comment"));
+    lines.push(`${tok("qm resize", "tok-cmd")} ${newId} scsi0 +${grow}G`);
+    lines.push("");
+    lines.push(tok("# per-VM cloud-init + resources", "tok-comment"));
+    let setLine = `${tok("qm set", "tok-cmd")} ${newId} \\\n`;
+    setLine += `  ${tok("--ciuser", "tok-flag")} ${user} \\\n`;
+    if (sshkey) setLine += `  ${tok("--sshkey", "tok-flag")} ${sshkey} \\\n`;
+    setLine += `  ${tok("--ipconfig0", "tok-flag")} ${ipconfig} \\\n`;
+    setLine += `  ${tok("--nameserver", "tok-flag")} ${tok(`"${dns}"`, "tok-str")} \\\n`;
+    setLine += `  ${tok("--memory", "tok-flag")} ${mem} ${tok("--balloon", "tok-flag")} 0 \\\n`;
+    setLine += `  ${tok("--cores", "tok-flag")} ${cores}`;
+    if (snippet) setLine += ` \\\n  ${tok("--cicustom", "tok-flag")} ${tok(`"user=${snippet}"`, "tok-str")}`;
+    if (tags) setLine += ` \\\n  ${tok("--tags", "tok-flag")} ${tags.replace(/\s+/g, "")}`;
+    lines.push(setLine);
+    lines.push("");
+    lines.push(tok("# start it", "tok-comment"));
+    lines.push(`${tok("qm start", "tok-cmd")} ${newId}`);
+    lines.push("");
+    lines.push(tok("# ~30s later, SSH should work:", "tok-comment"));
+    if (netMode === "dhcp") {
+      lines.push(`${tok("qm guest cmd", "tok-cmd")} ${newId} network-get-interfaces | grep ip-address`);
+      lines.push(tok(`# then: ssh ${user}@<ip-from-above>`, "tok-comment"));
+    } else {
+      lines.push(tok(`# ssh ${user}@${ip.split("/")[0]}`, "tok-comment"));
+    }
+
+    out.innerHTML = lines.join("\n");
+    const memGB = mem / 1024;
+    summary.textContent = `${netMode.toUpperCase()} · ${cores} vCPU · ${memGB.toFixed(memGB % 1 === 0 ? 0 : 1)} GB · ${disk} GB`;
+  }
+
+  // ===== tier presets (shared by top tier-cards and in-builder seg control) =====
+  const TIERS = {
+    tiny:   { cores: 1, mem: 1024, disk: 16 },
+    small:  { cores: 2, mem: 2048, disk: 30 },
+    medium: { cores: 4, mem: 4096, disk: 50 },
+    large:  { cores: 8, mem: 8192, disk: 100 },
+  };
+  const TIER_NAMES = {
+    tiny: "Tiny",
+    small: 'Small <span class="text-accent-warn text-[11px] ml-0.5">★</span>',
+    medium: "Medium",
+    large: "Large",
+    custom: "Custom",
+  };
+
+  function matchTier() {
+    const cores = parseInt(F("f-cores").value, 10);
+    const mem = parseInt(F("f-mem").value, 10);
+    const disk = parseInt(F("f-disk").value, 10);
+    for (const [name, t] of Object.entries(TIERS)) {
+      if (t.cores === cores && t.mem === mem && t.disk === disk) return name;
+    }
+    return "custom";
+  }
+
+  function updateReadout(active) {
+    const readout = F("preset-readout");
+    if (!readout) return;
+    const nameEl = readout.querySelector(".r-name");
+    const specEl = readout.querySelector(".r-spec");
+    nameEl.innerHTML = TIER_NAMES[active] || "Custom";
+    if (active === "custom") {
+      const cores = parseInt(F("f-cores").value, 10) || 0;
+      const memGB = (parseInt(F("f-mem").value, 10) || 0) / 1024;
+      const disk = parseInt(F("f-disk").value, 10) || 0;
+      specEl.textContent = `${cores} vCPU · ${memGB.toFixed(memGB % 1 === 0 ? 0 : 1)} GB RAM · ${disk} GB disk`;
+      specEl.classList.add("italic", "!text-text-faint");
+    } else {
+      const t = TIERS[active];
+      specEl.textContent = `${t.cores} vCPU · ${t.mem / 1024} GB RAM · ${t.disk} GB disk`;
+      specEl.classList.remove("italic", "!text-text-faint");
+    }
+  }
+
+  function syncPresetUI() {
+    const active = matchTier();
+    document.querySelectorAll(".seg-btn[data-builder-preset]").forEach((b) => {
+      b.classList.toggle("active", b.dataset.tier === active);
+    });
+    document.querySelectorAll(".tier-card[data-tier]").forEach((c) => {
+      c.classList.toggle("loaded", c.dataset.tier === active);
+    });
+    updateReadout(active);
+  }
+
+  function applyTier(name, opts) {
+    if (name === "custom") {
+      syncPresetUI();
+      return;
+    }
+    const t = TIERS[name];
+    if (!t) return;
+    F("f-cores").value = t.cores;
+    F("f-mem").value = t.mem;
+    F("f-disk").value = t.disk;
+    render();
+    syncPresetUI();
+    if (opts && opts.scroll) {
+      document.getElementById("builder").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
+  ["f-tmpl", "f-new", "f-name", "f-cores", "f-mem", "f-disk", "f-user", "f-sshkey", "f-ip", "f-gw", "f-dns", "f-snippet", "f-tags"].forEach((id) => {
+    F(id).addEventListener("input", () => {
+      render();
+      syncPresetUI();
+    });
+  });
+
+  document.querySelectorAll(".tier-card[data-tier]").forEach((card) => {
+    card.addEventListener("click", () => applyTier(card.dataset.tier, { scroll: true }));
+  });
+
+  document.querySelectorAll(".seg-btn[data-builder-preset]").forEach((btn) => {
+    btn.addEventListener("click", () => applyTier(btn.dataset.tier));
+  });
+
+  render();
+  syncPresetUI();
+</script>
+
+</body>
+</html>

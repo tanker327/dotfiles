@@ -1,0 +1,267 @@
+#!/bin/bash
+
+VERSION="1.0.0"
+
+#####################################################
+# Configure S3 Offsite Backups for PostgreSQL
+#####################################################
+# Usage:
+#   sudo bash configure-s3-backup.sh [enable|disable|status]
+#
+# - enable  (default): prompt for bucket/region/creds, validate with
+#           `aws s3 ls`, write /root/.pg-backup.env (chmod 600)
+# - disable: remove /root/.pg-backup.env (local backups continue)
+# - status:  show current config (creds masked)
+#
+# Requires: setup-postgres.sh must have already run (provides
+# /usr/local/bin/pg-backup.sh).
+#####################################################
+
+set -e
+set -o pipefail
+
+if ! { exec 3< /dev/tty; } 2>/dev/null; then
+    exec 3<&0
+fi
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+PG_BACKUP_SCRIPT="/usr/local/bin/pg-backup.sh"
+PG_BACKUP_ENV="/root/.pg-backup.env"
+
+log_info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
+log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
+log_error()   { echo -e "${RED}[ERROR]${NC} $1"; }
+
+section_header() {
+    echo ""
+    echo -e "${BLUE}========================================${NC}"
+    echo -e "${BLUE}$1${NC}"
+    echo -e "${BLUE}========================================${NC}"
+}
+
+check_root() {
+    if [ "$EUID" -ne 0 ]; then
+        log_error "This script must be run as root or with sudo"
+        exit 1
+    fi
+}
+
+check_prereqs() {
+    if [ ! -x "$PG_BACKUP_SCRIPT" ]; then
+        log_error "$PG_BACKUP_SCRIPT not found or not executable"
+        log_error "Run setup-postgres.sh first to install the backup infrastructure."
+        exit 1
+    fi
+}
+
+install_aws_cli_if_needed() {
+    if command -v aws >/dev/null 2>&1 \
+        && aws --version 2>&1 | grep -q "aws-cli/2"; then
+        log_info "AWS CLI v2 already installed: $(aws --version 2>&1)"
+        return
+    fi
+    log_info "Installing AWS CLI v2..."
+    apt-get update -qq
+    apt-get install -y -qq curl unzip
+    local arch url tmpdir
+    arch=$(uname -m)
+    case "$arch" in
+        x86_64)  url="https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" ;;
+        aarch64) url="https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" ;;
+        *)
+            log_error "Unsupported architecture for AWS CLI v2: $arch"
+            exit 1
+            ;;
+    esac
+    tmpdir=$(mktemp -d)
+    curl -fsSL "$url" -o "$tmpdir/awscliv2.zip"
+    unzip -q "$tmpdir/awscliv2.zip" -d "$tmpdir"
+    if command -v aws >/dev/null 2>&1; then
+        "$tmpdir/aws/install" --update
+    else
+        "$tmpdir/aws/install"
+    fi
+    rm -rf "$tmpdir"
+    log_success "AWS CLI v2 installed"
+}
+
+cmd_enable() {
+    section_header "Enable / Update S3 Offsite Backups"
+
+    local existing=""
+    if [ -f "$PG_BACKUP_ENV" ]; then
+        log_warning "$PG_BACKUP_ENV already exists — values shown as defaults"
+        existing="yes"
+        # shellcheck source=/dev/null
+        . "$PG_BACKUP_ENV"
+    fi
+
+    local default_bucket="${S3_BUCKET:-}"
+    local default_region="${AWS_DEFAULT_REGION:-us-east-1}"
+    local default_retention="${S3_RETENTION_DAYS:-30}"
+    local default_key_id="${AWS_ACCESS_KEY_ID:-}"
+
+    read -p "S3 bucket prefix (e.g. s3://my-pg-backups/host1/) [${default_bucket}]: " S3_BUCKET <&3
+    S3_BUCKET="${S3_BUCKET:-$default_bucket}"
+    if [ -z "$S3_BUCKET" ]; then
+        log_error "S3 bucket cannot be empty"
+        exit 1
+    fi
+
+    read -p "AWS region [${default_region}]: " AWS_REGION <&3
+    AWS_REGION="${AWS_REGION:-$default_region}"
+
+    read -p "AWS access key ID [${default_key_id:+keep existing}]: " ACCESS_KEY_ID_INPUT <&3
+    if [ -n "$ACCESS_KEY_ID_INPUT" ]; then
+        AWS_ACCESS_KEY_ID="$ACCESS_KEY_ID_INPUT"
+    elif [ -z "${AWS_ACCESS_KEY_ID:-}" ]; then
+        log_error "AWS access key ID required"
+        exit 1
+    fi
+
+    read -rsp "AWS secret access key [${AWS_SECRET_ACCESS_KEY:+keep existing}]: " SECRET_INPUT <&3
+    echo ""
+    if [ -n "$SECRET_INPUT" ]; then
+        AWS_SECRET_ACCESS_KEY="$SECRET_INPUT"
+    elif [ -z "${AWS_SECRET_ACCESS_KEY:-}" ]; then
+        log_error "AWS secret access key required"
+        exit 1
+    fi
+
+    read -p "S3 retention days [${default_retention}]: " S3_RETENTION_DAYS <&3
+    S3_RETENTION_DAYS="${S3_RETENTION_DAYS:-$default_retention}"
+
+    install_aws_cli_if_needed
+
+    log_info "Validating credentials against bucket..."
+    if ! AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+         AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+         AWS_DEFAULT_REGION="$AWS_REGION" \
+         aws s3 ls "$S3_BUCKET" >/dev/null 2>&1; then
+        log_error "Cannot access $S3_BUCKET with the supplied credentials"
+        log_error "Check the bucket prefix, region, key ID, and secret. Aborting; existing config unchanged."
+        exit 1
+    fi
+    log_success "S3 access verified"
+
+    umask 077
+    cat > "$PG_BACKUP_ENV" <<EOF
+# Generated by configure-s3-backup.sh ${VERSION}
+S3_BUCKET="${S3_BUCKET}"
+AWS_DEFAULT_REGION="${AWS_REGION}"
+AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
+AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
+S3_RETENTION_DAYS="${S3_RETENTION_DAYS}"
+EOF
+    chmod 600 "$PG_BACKUP_ENV"
+    chown root:root "$PG_BACKUP_ENV"
+    umask 022
+    log_success "Wrote $PG_BACKUP_ENV"
+
+    echo ""
+    read -p "Run a backup now to confirm end-to-end? [Y/n]: " RUN_NOW <&3
+    RUN_NOW="${RUN_NOW:-Y}"
+    if [[ "$RUN_NOW" =~ ^[Yy]$ ]]; then
+        if "$PG_BACKUP_SCRIPT"; then
+            log_success "Test backup succeeded"
+        else
+            log_error "Test backup failed — investigate before relying on it"
+            exit 1
+        fi
+    fi
+
+    if [ "$existing" = "yes" ]; then
+        log_success "S3 backup configuration updated"
+    else
+        log_success "S3 backups enabled"
+    fi
+}
+
+cmd_disable() {
+    section_header "Disable S3 Offsite Backups"
+
+    if [ ! -f "$PG_BACKUP_ENV" ]; then
+        log_info "S3 backups already disabled (no $PG_BACKUP_ENV)"
+        return
+    fi
+
+    read -p "Remove $PG_BACKUP_ENV and disable S3 upload? Local backups will continue. [y/N]: " ACK <&3
+    if [[ ! "$ACK" =~ ^[Yy]$ ]]; then
+        log_info "Aborted; nothing changed"
+        return
+    fi
+
+    rm -f "$PG_BACKUP_ENV"
+    log_success "Removed $PG_BACKUP_ENV. S3 uploads disabled."
+}
+
+mask() {
+    local s="$1"
+    local n=${#s}
+    if [ "$n" -le 4 ]; then
+        echo "****"
+    else
+        local last4="${s: -4}"
+        printf '%*s%s' $((n - 4)) '' "$last4" | tr ' ' '*'
+    fi
+}
+
+cmd_status() {
+    section_header "S3 Backup Status"
+
+    if [ ! -f "$PG_BACKUP_ENV" ]; then
+        echo "S3 backups: NOT CONFIGURED"
+        echo "Local backups continue daily via $PG_BACKUP_SCRIPT (if installed)."
+        echo "To enable, run: sudo bash $(basename "$0") enable"
+        return
+    fi
+
+    # shellcheck source=/dev/null
+    . "$PG_BACKUP_ENV"
+    echo "S3 backups:        ENABLED"
+    echo "  bucket prefix:   ${S3_BUCKET}"
+    echo "  region:          ${AWS_DEFAULT_REGION:-(unset)}"
+    echo "  retention days:  ${S3_RETENTION_DAYS:-(unset)}"
+    echo "  access key id:   $(mask "${AWS_ACCESS_KEY_ID:-}")"
+    echo "  secret:          $(mask "${AWS_SECRET_ACCESS_KEY:-}")"
+    echo ""
+    echo "Env file:          $PG_BACKUP_ENV (mode $(stat -c %a "$PG_BACKUP_ENV" 2>/dev/null || stat -f %A "$PG_BACKUP_ENV"))"
+}
+
+main() {
+    check_root
+    check_prereqs
+
+    local cmd="${1:-enable}"
+    case "$cmd" in
+        enable)  cmd_enable ;;
+        disable) cmd_disable ;;
+        status)  cmd_status ;;
+        -h|--help|help)
+            cat <<EOF
+configure-s3-backup.sh ${VERSION} — manage S3 offsite backups for PostgreSQL
+
+Usage: sudo bash $(basename "$0") [enable|disable|status]
+
+  enable   (default) Prompt for bucket / region / credentials, validate them,
+           write /root/.pg-backup.env (mode 600). Re-running this updates the
+           config in place — useful for rotating AWS keys.
+  disable  Remove /root/.pg-backup.env. Local backups continue daily.
+  status   Show current config (creds masked).
+EOF
+            ;;
+        *)
+            log_error "Unknown command: $cmd"
+            log_error "Usage: $(basename "$0") [enable|disable|status]"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
