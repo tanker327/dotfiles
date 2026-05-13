@@ -21,13 +21,14 @@ trap cleanup EXIT
 
 echo "── Scenario 01: Fresh install (minimal) ──"
 
-# Feed answers to the 16 interactive prompts (in order):
+# Feed answers to the interactive prompts (in order):
 INPUT=$(cat <<'EOF'
 n
 testuser
 Eric
 eric@example.com
 y
+n
 n
 y
 y
@@ -71,8 +72,9 @@ assert_exec_in "$CONTAINER" "zsh-autosuggestions plugin" test -d /home/testuser/
 assert_exec_in "$CONTAINER" "state file cleaned up" bash -c "! test -f /root/.vps-setup-state"
 assert_exec_in "$CONTAINER" "after_setup_todo.txt created" test -f /home/testuser/after_setup_todo.txt
 
-# UFW/fail2ban/Tailscale should NOT be installed in this scenario
+# UFW/fail2ban/Mosh/Tailscale should NOT be installed in this scenario
 assert_log_not_contains "$LOG_FILE" "Installing UFW firewall" "UFW skipped"
 assert_log_not_contains "$LOG_FILE" "Installing Tailscale" "Tailscale skipped"
+assert_log_not_contains "$LOG_FILE" "Installing mosh" "Mosh skipped"
 
 print_summary

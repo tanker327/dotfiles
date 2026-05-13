@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="2.1.0"
+VERSION="2.2.0"
 
 # Pinned versions for reproducibility — bump as needed
 NVM_VERSION="v0.40.1"
@@ -216,6 +216,9 @@ collect_user_inputs() {
     read -p "Install security tools (UFW firewall + fail2ban)? [Y/n]: " INSTALL_SECURITY <&3
     INSTALL_SECURITY=${INSTALL_SECURITY:-y}
 
+    read -p "Install Mosh (keeps SSH sessions alive on flaky networks)? [Y/n]: " INSTALL_MOSH <&3
+    INSTALL_MOSH=${INSTALL_MOSH:-y}
+
     read -p "Install Zsh + Oh My Zsh? [Y/n]: " INSTALL_ZSH <&3
     INSTALL_ZSH=${INSTALL_ZSH:-y}
 
@@ -281,6 +284,7 @@ collect_user_inputs() {
     echo "Components to install:"
     [ "$INSTALL_TOOLS" = "y" ] && echo "   Common tools"
     [ "$INSTALL_SECURITY" = "y" ] && echo "   Security (UFW + fail2ban)"
+    [ "$INSTALL_MOSH" = "y" ] && echo "   Mosh"
     [ "$INSTALL_ZSH" = "y" ] && echo "   Zsh + Oh My Zsh"
     [ "$INSTALL_UV" = "y" ] && echo "   UV (Python ${PYTHON_VERSION})"
     [ "$INSTALL_NVM" = "y" ] && echo "   NVM (Node.js ${NODE_VERSION})"
@@ -308,6 +312,7 @@ GIT_USER_NAME="$GIT_USER_NAME"
 GIT_USER_EMAIL="$GIT_USER_EMAIL"
 INSTALL_TOOLS="$INSTALL_TOOLS"
 INSTALL_SECURITY="$INSTALL_SECURITY"
+INSTALL_MOSH="$INSTALL_MOSH"
 INSTALL_ZSH="$INSTALL_ZSH"
 INSTALL_UV="$INSTALL_UV"
 INSTALL_NVM="$INSTALL_NVM"
@@ -396,6 +401,27 @@ install_security() {
     log_success "fail2ban installed and enabled"
 
     mark_step_complete "install_security"
+}
+
+install_mosh() {
+    skip_if_complete "install_mosh" && return 0
+
+    section_header "Installing Mosh"
+
+    log_info "Installing mosh..."
+    apt install -y mosh
+    log_success "Mosh installed"
+
+    # Mosh uses UDP 60000-61000. Open them if UFW is active.
+    if command -v ufw &> /dev/null && ufw status 2>/dev/null | grep -q "Status: active"; then
+        log_info "Opening UFW ports 60000:61000/udp for mosh..."
+        ufw allow 60000:61000/udp
+        log_success "UFW configured for mosh"
+    else
+        log_info "UFW not active; if you enable a firewall later, allow 60000:61000/udp for mosh"
+    fi
+
+    mark_step_complete "install_mosh"
 }
 
 install_zsh() {
@@ -955,6 +981,7 @@ main() {
     # Phase 4: Install system packages and services (as root)
     [ "$INSTALL_TOOLS" = "y" ] && install_common_tools
     [ "$INSTALL_SECURITY" = "y" ] && install_security
+    [ "$INSTALL_MOSH" = "y" ] && install_mosh
     [ "$INSTALL_ZSH" = "y" ] && install_zsh  # System package only
     [ "$INSTALL_DOCKER" = "y" ] && install_docker
     [ "$INSTALL_TAILSCALE" = "y" ] && install_tailscale
@@ -981,6 +1008,7 @@ generate_todo_content() {
     content+="=== INSTALLED COMPONENTS ===\n\n"
     [ "$INSTALL_TOOLS" = "y" ] && content+="  ✓ Common development tools\n"
     [ "$INSTALL_SECURITY" = "y" ] && content+="  ✓ UFW firewall and fail2ban\n"
+    [ "$INSTALL_MOSH" = "y" ] && content+="  ✓ Mosh (mobile shell — survives flaky networks)\n"
     [ "$INSTALL_ZSH" = "y" ] && content+="  ✓ Zsh + Oh My Zsh\n"
     [ "$INSTALL_UV" = "y" ] && content+="  ✓ UV with Python ${PYTHON_VERSION}\n"
     [ "$INSTALL_NVM" = "y" ] && content+="  ✓ NVM with Node.js ${NODE_VERSION}, pnpm, diff-so-fancy\n"

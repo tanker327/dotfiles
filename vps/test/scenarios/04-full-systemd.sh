@@ -64,6 +64,7 @@ y
 y
 y
 y
+y
 
 y
 y
@@ -80,6 +81,8 @@ assert_exec_in "$CONTAINER" "Docker service active" systemctl is-active docker
 assert_exec_in "$CONTAINER" "fail2ban service active" systemctl is-active fail2ban
 assert_exec_in "$CONTAINER" "UFW reports active" bash -c "ufw status | grep -q 'Status: active'"
 assert_exec_in "$CONTAINER" "swap configured" bash -c "swapon --show | grep -q /swapfile"
+assert_exec_in "$CONTAINER" "mosh-server on PATH" which mosh-server
+assert_exec_in "$CONTAINER" "UFW opened mosh UDP range" bash -c "ufw status | grep -q '60000:61000/udp'"
 
 # Core user-env asserts
 assert_exec_in "$CONTAINER" "testuser exists" id testuser
