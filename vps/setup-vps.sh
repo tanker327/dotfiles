@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="2.3.0"
+VERSION="2.3.1"
 
 # Pinned versions for reproducibility — bump as needed
 NVM_VERSION="v0.40.1"
@@ -21,11 +21,16 @@ DOTFILES_REPO_URL="${DOTFILES_REPO_URL:-https://github.com/tanker327/dotfiles.gi
 set -e
 set -o pipefail
 
-# Choose interactive input source. /dev/tty is preferred (works when invoked
-# via `curl | sudo bash` because the script body is on stdin). Fall back to
-# stdin for environments without a controlling terminal (Docker -i, CI).
+# Wire fd 3 (read) and fd 4 (prompt) directly to /dev/tty when possible.
+# Under `curl | sudo bash` the script body is on stdin and stderr can be
+# intercepted by sudoers log_output / wrapper scripts — writing the prompt
+# to /dev/tty bypasses both. Fall back to stdin/stderr when no controlling
+# terminal exists (Docker -i, CI).
 if ! exec 3< /dev/tty 2>/dev/null; then
     exec 3<&0
+fi
+if ! exec 4> /dev/tty 2>/dev/null; then
+    exec 4>&2
 fi
 
 # `read -p PROMPT VAR <&3` looks correct but bash decides whether to print
@@ -35,7 +40,7 @@ fi
 ask() {
     local __prompt="$1"
     local __var="$2"
-    printf "%s" "$__prompt" >&2
+    printf "%s" "$__prompt" >&4
     read "$__var" <&3
 }
 
