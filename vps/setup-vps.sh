@@ -7,6 +7,9 @@ NVM_VERSION="v0.40.1"
 NODE_VERSION="22"
 PYTHON_VERSION="3.12"
 
+# Dotfiles repo URL — override to test the local working tree
+DOTFILES_REPO_URL="${DOTFILES_REPO_URL:-https://github.com/tanker327/dotfiles.git}"
+
 #####################################################
 # VPS Setup Script - Complete Server Configuration
 #####################################################
@@ -17,6 +20,13 @@ PYTHON_VERSION="3.12"
 
 set -e
 set -o pipefail
+
+# Choose interactive input source. /dev/tty is preferred (works when invoked
+# via `curl | sudo bash` because the script body is on stdin). Fall back to
+# stdin for environments without a controlling terminal (Docker -i, CI).
+if ! exec 3< /dev/tty 2>/dev/null; then
+    exec 3<&0
+fi
 
 # Color codes for output
 RED='\033[0;31m'
@@ -125,7 +135,7 @@ collect_user_inputs() {
     if [ -f "$STATE_FILE" ]; then
         echo -e "${YELLOW}Previous installation detected!${NC}"
         echo ""
-        read -p "Resume previous installation? (y/n): " RESUME_INSTALL </dev/tty
+        read -p "Resume previous installation? (y/n): " RESUME_INSTALL <&3
         if [ "$RESUME_INSTALL" = "y" ]; then
             log_info "Resuming previous installation..."
             # Load previous configuration
@@ -148,7 +158,7 @@ collect_user_inputs() {
 
     # Ask if user wants to create new user or use existing
     echo ""
-    read -p "Use existing user instead of creating new one? (y/n) [N]: " USE_EXISTING_USER </dev/tty
+    read -p "Use existing user instead of creating new one? (y/n) [N]: " USE_EXISTING_USER <&3
     USE_EXISTING_USER=${USE_EXISTING_USER:-n}
 
     if [ "$USE_EXISTING_USER" = "y" ]; then
@@ -174,14 +184,14 @@ collect_user_inputs() {
 
         # Collect new username
         while true; do
-            read -p "Enter username for new user account: " NEW_USERNAME </dev/tty
+            read -p "Enter username for new user account: " NEW_USERNAME <&3
             if [ -z "$NEW_USERNAME" ]; then
                 log_warning "Username cannot be empty"
                 continue
             fi
             if id "$NEW_USERNAME" &>/dev/null; then
                 log_warning "User $NEW_USERNAME already exists"
-                read -p "Continue with existing user? (y/n): " confirm </dev/tty
+                read -p "Continue with existing user? (y/n): " confirm <&3
                 if [ "$confirm" = "y" ]; then
                     break
                 fi
@@ -192,42 +202,42 @@ collect_user_inputs() {
     fi
 
     # Collect git configuration
-    read -p "Enter Git user name (e.g., 'Eric'): " GIT_USER_NAME </dev/tty
-    read -p "Enter Git email (e.g., 'your@email.com'): " GIT_USER_EMAIL </dev/tty
+    read -p "Enter Git user name (e.g., 'Eric'): " GIT_USER_NAME <&3
+    read -p "Enter Git email (e.g., 'your@email.com'): " GIT_USER_EMAIL <&3
 
     # Component selection
     echo ""
     echo -e "${YELLOW}Select components to install (y/n for each):${NC}"
     echo ""
 
-    read -p "Install common tools (curl, wget, git, vim, htop, unzip, tree, build-essential)? [Y/n]: " INSTALL_TOOLS </dev/tty
+    read -p "Install common tools (curl, wget, git, vim, htop, unzip, tree, build-essential)? [Y/n]: " INSTALL_TOOLS <&3
     INSTALL_TOOLS=${INSTALL_TOOLS:-y}
 
-    read -p "Install security tools (UFW firewall + fail2ban)? [Y/n]: " INSTALL_SECURITY </dev/tty
+    read -p "Install security tools (UFW firewall + fail2ban)? [Y/n]: " INSTALL_SECURITY <&3
     INSTALL_SECURITY=${INSTALL_SECURITY:-y}
 
-    read -p "Install Zsh + Oh My Zsh? [Y/n]: " INSTALL_ZSH </dev/tty
+    read -p "Install Zsh + Oh My Zsh? [Y/n]: " INSTALL_ZSH <&3
     INSTALL_ZSH=${INSTALL_ZSH:-y}
 
-    read -p "Install UV (Python package manager) with Python ${PYTHON_VERSION}? [Y/n]: " INSTALL_UV </dev/tty
+    read -p "Install UV (Python package manager) with Python ${PYTHON_VERSION}? [Y/n]: " INSTALL_UV <&3
     INSTALL_UV=${INSTALL_UV:-y}
 
-    read -p "Install NVM with Node.js ${NODE_VERSION}? [Y/n]: " INSTALL_NVM </dev/tty
+    read -p "Install NVM with Node.js ${NODE_VERSION}? [Y/n]: " INSTALL_NVM <&3
     INSTALL_NVM=${INSTALL_NVM:-y}
 
-    read -p "Install Docker + Docker Compose? [Y/n]: " INSTALL_DOCKER </dev/tty
+    read -p "Install Docker + Docker Compose? [Y/n]: " INSTALL_DOCKER <&3
     INSTALL_DOCKER=${INSTALL_DOCKER:-y}
 
-    read -p "Install Tailscale VPN? [Y/n]: " INSTALL_TAILSCALE </dev/tty
+    read -p "Install Tailscale VPN? [Y/n]: " INSTALL_TAILSCALE <&3
     INSTALL_TAILSCALE=${INSTALL_TAILSCALE:-y}
 
-    read -p "Install Bun (JavaScript runtime)? [Y/n]: " INSTALL_BUN </dev/tty
+    read -p "Install Bun (JavaScript runtime)? [Y/n]: " INSTALL_BUN <&3
     INSTALL_BUN=${INSTALL_BUN:-y}
 
-    read -p "Install Claude Code CLI? [Y/n]: " INSTALL_CLAUDE </dev/tty
+    read -p "Install Claude Code CLI? [Y/n]: " INSTALL_CLAUDE <&3
     INSTALL_CLAUDE=${INSTALL_CLAUDE:-y}
 
-    read -p "Configure swap space (recommended for low-memory VPS)? [Y/n]: " SETUP_SWAP </dev/tty
+    read -p "Configure swap space (recommended for low-memory VPS)? [Y/n]: " SETUP_SWAP <&3
     SETUP_SWAP=${SETUP_SWAP:-y}
 
     # Password configuration - will use username as initial password
@@ -252,11 +262,11 @@ collect_user_inputs() {
         fi
 
         echo "Detected RAM: ${TOTAL_RAM_GB}GB"
-        read -p "Swap size in GB [recommended: ${RECOMMENDED_SWAP}]: " SWAP_SIZE </dev/tty
+        read -p "Swap size in GB [recommended: ${RECOMMENDED_SWAP}]: " SWAP_SIZE <&3
         SWAP_SIZE=${SWAP_SIZE:-$RECOMMENDED_SWAP}
     fi
 
-    read -p "Clone and apply dotfiles from github.com/tanker327? [Y/n]: " INSTALL_DOTFILES </dev/tty
+    read -p "Clone and apply dotfiles from github.com/tanker327? [Y/n]: " INSTALL_DOTFILES <&3
     INSTALL_DOTFILES=${INSTALL_DOTFILES:-y}
 
     # Summary of selections
@@ -279,7 +289,7 @@ collect_user_inputs() {
     [ "$INSTALL_DOTFILES" = "y" ] && echo "   Dotfiles configuration"
     echo ""
 
-    read -p "Proceed with installation? (y/n): " CONFIRM_INSTALL </dev/tty
+    read -p "Proceed with installation? (y/n): " CONFIRM_INSTALL <&3
     if [ "$CONFIRM_INSTALL" != "y" ]; then
         log_warning "Installation cancelled by user"
         exit 0
@@ -603,10 +613,10 @@ user_env_clone_dotfiles() {
     elif [ -d "$DOTFILES_DIR" ]; then
         log_warning "Dotfiles directory exists but is not a git repo, backing up to ${DOTFILES_DIR}.bak.$(date +%s)"
         mv "$DOTFILES_DIR" "${DOTFILES_DIR}.bak.$(date +%s)"
-        su - "$NEW_USERNAME" -c "git clone https://github.com/tanker327/dotfiles.git $DOTFILES_DIR" 2>&1 | tee -a "$SETUP_INFO_FILE" \
+        su - "$NEW_USERNAME" -c "git clone $DOTFILES_REPO_URL $DOTFILES_DIR" 2>&1 | tee -a "$SETUP_INFO_FILE" \
             || { log_error "Failed to clone dotfiles repository"; return 1; }
     else
-        if ! su - "$NEW_USERNAME" -c "git clone https://github.com/tanker327/dotfiles.git $DOTFILES_DIR" 2>&1 | tee -a "$SETUP_INFO_FILE"; then
+        if ! su - "$NEW_USERNAME" -c "git clone $DOTFILES_REPO_URL $DOTFILES_DIR" 2>&1 | tee -a "$SETUP_INFO_FILE"; then
             log_error "Failed to clone dotfiles repository"
             return 1
         fi
@@ -797,7 +807,8 @@ user_env_bun() {
 
     section_header "User Env: Bun"
 
-    if ! su - "$NEW_USERNAME" -c 'command -v bun' &>/dev/null; then
+    # PATH expansion needed because `su - user -c` under zsh skips .zshrc
+    if ! su - "$NEW_USERNAME" -c 'export PATH="$HOME/.bun/bin:$PATH"; command -v bun' &>/dev/null; then
         log_info "Installing Bun for $NEW_USERNAME..."
         su - "$NEW_USERNAME" -c 'curl -fsSL https://bun.sh/install | bash'
         log_success "Bun installed for $NEW_USERNAME"
@@ -819,9 +830,13 @@ user_env_claude() {
         log_info "Claude Code already installed for $NEW_USERNAME, skipping"
     else
         log_info "Installing Claude Code for $NEW_USERNAME..."
-        su - "$NEW_USERNAME" -c 'curl -fsSL https://installs.claude.ai/install.sh | sh'
-        log_success "Claude Code installed for $NEW_USERNAME"
-        log_info "User should run 'claude' then '/login' inside it to authenticate"
+        # set -o pipefail in the subshell so a failed curl propagates through `| bash`
+        if su - "$NEW_USERNAME" -c 'set -o pipefail; curl -fsSL https://claude.ai/install.sh | bash'; then
+            log_success "Claude Code installed for $NEW_USERNAME"
+            log_info "User should run 'claude' then '/login' inside it to authenticate"
+        else
+            log_warning "Claude Code install failed (continuing anyway). User can retry with: curl -fsSL https://claude.ai/install.sh | bash"
+        fi
     fi
 
     mark_step_complete "user_env_claude"
