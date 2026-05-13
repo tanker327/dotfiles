@@ -728,6 +728,18 @@ user_env_symlinks() {
     mark_step_complete "user_env_symlinks"
 }
 
+user_env_dirs() {
+    skip_if_complete "user_env_dirs" && return 0
+    _user_env_init_paths || return 1
+
+    section_header "User Env: Project directories"
+
+    su - "$NEW_USERNAME" -c "mkdir -p $USER_HOME/projects/work $USER_HOME/deploy"
+    log_success "Created ~/projects/work and ~/deploy for $NEW_USERNAME"
+
+    mark_step_complete "user_env_dirs"
+}
+
 user_env_ssh() {
     skip_if_complete "user_env_ssh" && return 0
     _user_env_init_paths || return 1
@@ -971,6 +983,7 @@ install_user_environment() {
 
     user_env_clone_dotfiles
     user_env_symlinks
+    user_env_dirs
     user_env_ssh
     user_env_zsh
     user_env_nvm
