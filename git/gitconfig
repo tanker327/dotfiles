@@ -4,7 +4,7 @@
 
 [core]
 	excludesfile = ~/.gitignore_global
-	editor = /usr/bin/vim
+	editor = vim
 	pager = diff-so-fancy | less --tabs=4 -RFX
 
 #####################################################
@@ -28,6 +28,7 @@
 
 [rebase]
 	autoStash = true
+	updateRefs = true
 
 [init]
 	defaultBranch = main
@@ -78,26 +79,41 @@
 	process = git-lfs filter-process
 
 #####################################################
-# Commit Configuration
-#####################################################
-
-[commit]
-	template = ~/.stCommitMsg
-
-#####################################################
-# Diff & Merge Tool Configuration
+# Diff & Merge Configuration
 #####################################################
 
 [interactive]
 	diffFilter = diff-so-fancy --patch
 
-[difftool "sourcetree"]
-	cmd = opendiff \"$LOCAL\" \"$REMOTE\"
-	path = 
+[diff]
+	algorithm = histogram
+	colorMoved = default
 
-[mergetool "sourcetree"]
-	cmd = /Applications/Sourcetree.app/Contents/Resources/opendiff-w.sh \"$LOCAL\" \"$REMOTE\" -ancestor \"$BASE\" -merge \"$MERGED\"
-	trustExitCode = true
+[merge]
+	conflictStyle = zdiff3
+
+[rerere]
+	enabled = true
+
+#####################################################
+# Fetch / Branch / Help / Transfer
+#####################################################
+
+[fetch]
+	prune = true
+	pruneTags = true
+
+[branch]
+	sort = -committerdate
+
+[column]
+	ui = auto
+
+[help]
+	autocorrect = prompt
+
+[transfer]
+	fsckObjects = true
 
 #####################################################
 # diff-so-fancy Color Configuration
