@@ -37,6 +37,7 @@ n
 y
 y
 n
+n
 y
 y
 EOF
@@ -57,6 +58,8 @@ echo "Verifying container state..."
 docker start "$CONTAINER" >/dev/null
 
 assert_exec_in "$CONTAINER" "testuser exists" id testuser
+assert_exec_in "$CONTAINER" "tmux installed" which tmux
+assert_exec_in "$CONTAINER" "command-not-found installed" bash -c "dpkg -s command-not-found >/dev/null"
 assert_exec_in "$CONTAINER" ".zshrc is a symlink" test -L /home/testuser/.zshrc
 assert_exec_in "$CONTAINER" ".gitconfig is a symlink" test -L /home/testuser/.gitconfig
 assert_exec_in "$CONTAINER" "dotfiles repo cloned" test -d /home/testuser/dotfiles/.git

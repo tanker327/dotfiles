@@ -39,6 +39,7 @@ n
 y
 y
 n
+n
 y
 y
 EOF
@@ -62,6 +63,7 @@ n
 n
 y
 y
+n
 n
 y
 y

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="2.0.0"
+VERSION="2.1.0"
 
 # Pinned versions for reproducibility — bump as needed
 NVM_VERSION="v0.40.1"
@@ -237,6 +237,9 @@ collect_user_inputs() {
     read -p "Install Claude Code CLI? [Y/n]: " INSTALL_CLAUDE <&3
     INSTALL_CLAUDE=${INSTALL_CLAUDE:-y}
 
+    read -p "Install OpenAI Codex CLI (requires NVM)? [Y/n]: " INSTALL_CODEX <&3
+    INSTALL_CODEX=${INSTALL_CODEX:-y}
+
     read -p "Configure swap space (recommended for low-memory VPS)? [Y/n]: " SETUP_SWAP <&3
     SETUP_SWAP=${SETUP_SWAP:-y}
 
@@ -284,6 +287,7 @@ collect_user_inputs() {
     [ "$INSTALL_DOCKER" = "y" ] && echo "   Docker + Docker Compose"
     [ "$INSTALL_TAILSCALE" = "y" ] && echo "   Tailscale VPN"
     [ "$INSTALL_CLAUDE" = "y" ] && echo "   Claude Code"
+    [ "$INSTALL_CODEX" = "y" ] && echo "   OpenAI Codex"
     [ "$INSTALL_BUN" = "y" ] && echo "   Bun"
     [ "$SETUP_SWAP" = "y" ] && echo "   Swap space (${SWAP_SIZE}GB)"
     [ "$INSTALL_DOTFILES" = "y" ] && echo "   Dotfiles configuration"
@@ -311,6 +315,7 @@ INSTALL_DOCKER="$INSTALL_DOCKER"
 INSTALL_TAILSCALE="$INSTALL_TAILSCALE"
 INSTALL_BUN="$INSTALL_BUN"
 INSTALL_CLAUDE="$INSTALL_CLAUDE"
+INSTALL_CODEX="$INSTALL_CODEX"
 SETUP_SWAP="$SETUP_SWAP"
 SWAP_SIZE="$SWAP_SIZE"
 INSTALL_DOTFILES="$INSTALL_DOTFILES"
@@ -358,8 +363,10 @@ install_common_tools() {
     skip_if_complete "install_common_tools" && return 0
 
     section_header "Installing Common Tools"
-    log_info "Installing curl, wget, git, vim, htop, btop, unzip, tree, build-essential..."
-    apt install -y curl wget git vim htop btop unzip tree build-essential net-tools locate openssh-server openssh-client
+    log_info "Installing curl, wget, git, vim, htop, btop, unzip, tree, tmux, build-essential..."
+    apt install -y curl wget git vim htop btop unzip tree build-essential \
+        net-tools locate openssh-server openssh-client \
+        tmux command-not-found
     log_success "Common tools installed"
 
     mark_step_complete "install_common_tools"
@@ -842,6 +849,31 @@ user_env_claude() {
     mark_step_complete "user_env_claude"
 }
 
+user_env_codex() {
+    [ "$INSTALL_CODEX" = "y" ] || return 0
+    [ "$INSTALL_NVM" = "y" ] || { log_warning "Skipping Codex install — requires NVM"; return 0; }
+    skip_if_complete "user_env_codex" && return 0
+    _user_env_init_paths || return 1
+
+    section_header "User Env: OpenAI Codex CLI"
+
+    # Codex installs as an npm global, so the bun-style PATH expansion isn't needed —
+    # NVM puts node/npm/codex into the user's nvm directory, which `su - user`
+    # picks up via the loaded NVM script.
+    if su - "$NEW_USERNAME" -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && command -v codex' &>/dev/null; then
+        log_info "Codex already installed for $NEW_USERNAME, skipping"
+    else
+        log_info "Installing OpenAI Codex CLI for $NEW_USERNAME..."
+        if su - "$NEW_USERNAME" -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && npm install -g @openai/codex' 2>&1 | tee -a "$SETUP_INFO_FILE"; then
+            log_success "OpenAI Codex installed for $NEW_USERNAME"
+        else
+            log_warning "Codex install failed (continuing anyway). User can retry with: npm install -g @openai/codex"
+        fi
+    fi
+
+    mark_step_complete "user_env_codex"
+}
+
 user_env_npm_globals() {
     [ "$INSTALL_NVM" = "y" ] || return 0
     skip_if_complete "user_env_npm_globals" && return 0
@@ -891,6 +923,7 @@ install_user_environment() {
     user_env_uv
     user_env_bun
     user_env_claude
+    user_env_codex
     user_env_npm_globals
     user_env_zsh_plugins
     user_env_log_versions
@@ -955,6 +988,7 @@ generate_todo_content() {
     [ "$INSTALL_TAILSCALE" = "y" ] && content+="  ✓ Tailscale VPN\n"
     [ "$INSTALL_BUN" = "y" ] && content+="  ✓ Bun\n"
     [ "$INSTALL_CLAUDE" = "y" ] && content+="  ✓ Claude Code CLI\n"
+    [ "$INSTALL_CODEX" = "y" ] && content+="  ✓ OpenAI Codex CLI\n"
     [ "$SETUP_SWAP" = "y" ] && content+="  ✓ Swap space (${SWAP_SIZE}GB)\n"
     [ "$INSTALL_DOTFILES" = "y" ] && content+="  ✓ Dotfiles configuration\n"
 
