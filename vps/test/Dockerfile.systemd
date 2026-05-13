@@ -1,0 +1,8 @@
+FROM jrei/systemd-ubuntu:24.04
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl ca-certificates sudo git locales \
+    && rm -rf /var/lib/apt/lists/*
+# Container must be started with:
+#   --privileged --cgroupns=host -v /sys/fs/cgroup:/sys/fs/cgroup:rw
+# Entry runs systemd as PID 1. Tests use `docker exec` to invoke setup-vps.sh.

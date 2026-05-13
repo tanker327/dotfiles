@@ -43,7 +43,7 @@ section_header() {
 # Check if running as regular user (not root)
 if [ "$EUID" -eq 0 ]; then
     log_error "This script should NOT be run as root"
-    log_error "Run as your regular user: bash ~/dotfiles/vps/rebuild-zsh.sh"
+    log_error "Run as your regular user: bash ~/dotfiles/vps/rebuild-dotfiles.sh"
     exit 1
 fi
 
@@ -153,9 +153,11 @@ else
 fi
 
 # Check and install Oh My Zsh if needed
+# KEEP_ZSHRC=yes prevents the installer from clobbering the .zshrc symlink
+# we just created above with its default template.
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
     section_header "Installing Oh My Zsh"
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+    KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
     log_success "Oh My Zsh installed"
 else
     log_info "Oh My Zsh already installed"
@@ -220,10 +222,21 @@ if [ ! -f "$HOME/.p10k.zsh" ] || [ ! -f "$DOTFILES_DIR/zsh/p10k.zsh" ]; then
 fi
 echo ""
 
-# Check if diff-so-fancy is installed
+# Check if diff-so-fancy is installed (prefer npm — the apt package is stale on Ubuntu 22.04+)
 if ! command -v diff-so-fancy &> /dev/null; then
     echo -e "${YELLOW}Optional: Install diff-so-fancy for better git diffs${NC}"
-    echo "  sudo apt install -y diff-so-fancy"
+    if command -v npm &> /dev/null; then
+        echo "  npm install -g diff-so-fancy"
+    else
+        echo "  npm install -g diff-so-fancy   # requires NVM/Node — install NVM first"
+    fi
+    echo ""
+fi
+
+# Warn if .tmux.conf was symlinked but tmux itself isn't installed
+if [ -L "$HOME/.tmux.conf" ] && ! command -v tmux &> /dev/null; then
+    echo -e "${YELLOW}Note: .tmux.conf is symlinked but tmux isn't installed${NC}"
+    echo "  sudo apt install -y tmux"
     echo ""
 fi
 
