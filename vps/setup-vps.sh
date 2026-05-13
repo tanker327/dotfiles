@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="2.2.0"
+VERSION="2.3.0"
 
 # Pinned versions for reproducibility — bump as needed
 NVM_VERSION="v0.40.1"
@@ -27,6 +27,17 @@ set -o pipefail
 if ! exec 3< /dev/tty 2>/dev/null; then
     exec 3<&0
 fi
+
+# `read -p PROMPT VAR <&3` looks correct but bash decides whether to print
+# PROMPT based on its own tty heuristic against the redirected fd, which
+# silently drops the prompt on some terminals/sudo configurations even when
+# fd 3 *is* /dev/tty. Print prompts ourselves and read separately.
+ask() {
+    local __prompt="$1"
+    local __var="$2"
+    printf "%s" "$__prompt" >&2
+    read "$__var" <&3
+}
 
 # Color codes for output
 RED='\033[0;31m'
@@ -135,7 +146,7 @@ collect_user_inputs() {
     if [ -f "$STATE_FILE" ]; then
         echo -e "${YELLOW}Previous installation detected!${NC}"
         echo ""
-        read -p "Resume previous installation? (y/n): " RESUME_INSTALL <&3
+        ask "Resume previous installation? (y/n): " RESUME_INSTALL
         if [ "$RESUME_INSTALL" = "y" ]; then
             log_info "Resuming previous installation..."
             # Load previous configuration
@@ -158,7 +169,7 @@ collect_user_inputs() {
 
     # Ask if user wants to create new user or use existing
     echo ""
-    read -p "Use existing user instead of creating new one? (y/n) [N]: " USE_EXISTING_USER <&3
+    ask "Use existing user instead of creating new one? (y/n) [N]: " USE_EXISTING_USER
     USE_EXISTING_USER=${USE_EXISTING_USER:-n}
 
     if [ "$USE_EXISTING_USER" = "y" ]; then
@@ -184,14 +195,14 @@ collect_user_inputs() {
 
         # Collect new username
         while true; do
-            read -p "Enter username for new user account: " NEW_USERNAME <&3
+            ask "Enter username for new user account: " NEW_USERNAME
             if [ -z "$NEW_USERNAME" ]; then
                 log_warning "Username cannot be empty"
                 continue
             fi
             if id "$NEW_USERNAME" &>/dev/null; then
                 log_warning "User $NEW_USERNAME already exists"
-                read -p "Continue with existing user? (y/n): " confirm <&3
+                ask "Continue with existing user? (y/n): " confirm
                 if [ "$confirm" = "y" ]; then
                     break
                 fi
@@ -202,48 +213,48 @@ collect_user_inputs() {
     fi
 
     # Collect git configuration
-    read -p "Enter Git user name (e.g., 'Eric'): " GIT_USER_NAME <&3
-    read -p "Enter Git email (e.g., 'your@email.com'): " GIT_USER_EMAIL <&3
+    ask "Enter Git user name (e.g., 'Eric'): " GIT_USER_NAME
+    ask "Enter Git email (e.g., 'your@email.com'): " GIT_USER_EMAIL
 
     # Component selection
     echo ""
     echo -e "${YELLOW}Select components to install (y/n for each):${NC}"
     echo ""
 
-    read -p "Install common tools (curl, wget, git, vim, htop, unzip, tree, build-essential)? [Y/n]: " INSTALL_TOOLS <&3
+    ask "Install common tools (curl, wget, git, vim, htop, unzip, tree, build-essential)? [Y/n]: " INSTALL_TOOLS
     INSTALL_TOOLS=${INSTALL_TOOLS:-y}
 
-    read -p "Install security tools (UFW firewall + fail2ban)? [Y/n]: " INSTALL_SECURITY <&3
+    ask "Install security tools (UFW firewall + fail2ban)? [Y/n]: " INSTALL_SECURITY
     INSTALL_SECURITY=${INSTALL_SECURITY:-y}
 
-    read -p "Install Mosh (keeps SSH sessions alive on flaky networks)? [Y/n]: " INSTALL_MOSH <&3
+    ask "Install Mosh (keeps SSH sessions alive on flaky networks)? [Y/n]: " INSTALL_MOSH
     INSTALL_MOSH=${INSTALL_MOSH:-y}
 
-    read -p "Install Zsh + Oh My Zsh? [Y/n]: " INSTALL_ZSH <&3
+    ask "Install Zsh + Oh My Zsh? [Y/n]: " INSTALL_ZSH
     INSTALL_ZSH=${INSTALL_ZSH:-y}
 
-    read -p "Install UV (Python package manager) with Python ${PYTHON_VERSION}? [Y/n]: " INSTALL_UV <&3
+    ask "Install UV (Python package manager) with Python ${PYTHON_VERSION}? [Y/n]: " INSTALL_UV
     INSTALL_UV=${INSTALL_UV:-y}
 
-    read -p "Install NVM with Node.js ${NODE_VERSION}? [Y/n]: " INSTALL_NVM <&3
+    ask "Install NVM with Node.js ${NODE_VERSION}? [Y/n]: " INSTALL_NVM
     INSTALL_NVM=${INSTALL_NVM:-y}
 
-    read -p "Install Docker + Docker Compose? [Y/n]: " INSTALL_DOCKER <&3
+    ask "Install Docker + Docker Compose? [Y/n]: " INSTALL_DOCKER
     INSTALL_DOCKER=${INSTALL_DOCKER:-y}
 
-    read -p "Install Tailscale VPN? [Y/n]: " INSTALL_TAILSCALE <&3
+    ask "Install Tailscale VPN? [Y/n]: " INSTALL_TAILSCALE
     INSTALL_TAILSCALE=${INSTALL_TAILSCALE:-y}
 
-    read -p "Install Bun (JavaScript runtime)? [Y/n]: " INSTALL_BUN <&3
+    ask "Install Bun (JavaScript runtime)? [Y/n]: " INSTALL_BUN
     INSTALL_BUN=${INSTALL_BUN:-y}
 
-    read -p "Install Claude Code CLI? [Y/n]: " INSTALL_CLAUDE <&3
+    ask "Install Claude Code CLI? [Y/n]: " INSTALL_CLAUDE
     INSTALL_CLAUDE=${INSTALL_CLAUDE:-y}
 
-    read -p "Install OpenAI Codex CLI (requires NVM)? [Y/n]: " INSTALL_CODEX <&3
+    ask "Install OpenAI Codex CLI (requires NVM)? [Y/n]: " INSTALL_CODEX
     INSTALL_CODEX=${INSTALL_CODEX:-y}
 
-    read -p "Configure swap space (recommended for low-memory VPS)? [Y/n]: " SETUP_SWAP <&3
+    ask "Configure swap space (recommended for low-memory VPS)? [Y/n]: " SETUP_SWAP
     SETUP_SWAP=${SETUP_SWAP:-y}
 
     # Password configuration - will use username as initial password
@@ -268,11 +279,11 @@ collect_user_inputs() {
         fi
 
         echo "Detected RAM: ${TOTAL_RAM_GB}GB"
-        read -p "Swap size in GB [recommended: ${RECOMMENDED_SWAP}]: " SWAP_SIZE <&3
+        ask "Swap size in GB [recommended: ${RECOMMENDED_SWAP}]: " SWAP_SIZE
         SWAP_SIZE=${SWAP_SIZE:-$RECOMMENDED_SWAP}
     fi
 
-    read -p "Clone and apply dotfiles from github.com/tanker327? [Y/n]: " INSTALL_DOTFILES <&3
+    ask "Clone and apply dotfiles from github.com/tanker327? [Y/n]: " INSTALL_DOTFILES
     INSTALL_DOTFILES=${INSTALL_DOTFILES:-y}
 
     # Summary of selections
@@ -297,7 +308,7 @@ collect_user_inputs() {
     [ "$INSTALL_DOTFILES" = "y" ] && echo "   Dotfiles configuration"
     echo ""
 
-    read -p "Proceed with installation? (y/n): " CONFIRM_INSTALL <&3
+    ask "Proceed with installation? (y/n): " CONFIRM_INSTALL
     if [ "$CONFIRM_INSTALL" != "y" ]; then
         log_warning "Installation cancelled by user"
         exit 0
