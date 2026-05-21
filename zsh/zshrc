@@ -128,3 +128,8 @@ command -v claude >/dev/null 2>&1 && claude update > /dev/null 2>&1 &!
 
 # OpenClaw Completion (only if installed)
 [ -f "$HOME/.openclaw/completions/openclaw.zsh" ] && source "$HOME/.openclaw/completions/openclaw.zsh"
+
+# >>> grok installer >>>
+# Only add to PATH if grok is actually installed (dotfiles are shared across machines)
+[ -d "$HOME/.grok/bin" ] && export PATH="$HOME/.grok/bin:$PATH"
+# <<< grok installer <<<
