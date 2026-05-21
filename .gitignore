@@ -4,3 +4,4 @@
 
 **/*.un~
 code/User/workspaceStorage
+.claude/worktrees/
