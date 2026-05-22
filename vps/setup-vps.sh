@@ -3,8 +3,8 @@
 VERSION="2.4.0"
 
 # Pinned versions for reproducibility — bump as needed
-NVM_VERSION="v0.40.1"
-NODE_VERSION="22"
+NVM_VERSION="v0.40.4"
+NODE_VERSION="24"
 PYTHON_VERSION="3.12"
 
 # Dotfiles repo URL — override to test the local working tree
