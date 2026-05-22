@@ -116,6 +116,23 @@ check_root() {
     fi
 }
 
+# Minimal cloud images (e.g. Debian genericcloud) ship without curl, which
+# later steps (Docker GPG key, Tailscale installer, NVM, UV, Bun, Claude Code)
+# all rely on. Install it up front so those steps don't fail mid-run.
+check_curl() {
+    if command -v curl &> /dev/null; then
+        return 0
+    fi
+    log_warning "curl not found — installing as prerequisite"
+    if ! command -v apt &> /dev/null; then
+        log_error "apt not available; cannot auto-install curl on this system"
+        exit 1
+    fi
+    apt update -y
+    apt install -y curl ca-certificates
+    log_success "curl installed"
+}
+
 #####################################################
 # Input Collection Phase
 #####################################################
@@ -1004,6 +1021,7 @@ install_user_environment() {
 
 main() {
     check_root
+    check_curl
 
     # Phase 1: Collect all inputs
     collect_user_inputs
