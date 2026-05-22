@@ -52,8 +52,9 @@ alias tt="tmux -CC"
 # Claude Code Aliases
 #####################################################
 
-alias cc="claude --dangerously-skip-permissions"
+alias cc="CLAUDE_CODE_NO_FLICKER=1 claude --dangerously-skip-permissions"
 alias cca="claude agents"
 alias ca="claude agents"
 alias cx="codex --yolo"
 
+alias dev="mosh vdev"
