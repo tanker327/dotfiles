@@ -5,3 +5,4 @@
 **/*.un~
 code/User/workspaceStorage
 .claude/worktrees/
+.claude/settings.local.json
