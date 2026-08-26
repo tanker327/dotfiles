@@ -6,3 +6,6 @@ makefile
 .postgres*
 node_modules*
 .vscode
+
+**/.claude/settings.local.json
+global_ignore/
