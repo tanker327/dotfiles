@@ -21,6 +21,21 @@ This is a personal dotfiles repository for macOS and Ubuntu/VPS system configura
 - **git/new-git-command/**: Custom git commands added to PATH
   - Custom commands: admin-release, git-new, git-pullme, git-pushme, git-save, newsql
 
+### Neovim Configuration
+- **nvim/**: LazyVim-based config (symlinked to ~/.config/nvim), styled after Omarchy defaults
+  - `lua/config/options.lua`: LazyVim options + Omarchy tweaks (absolute line numbers, no swapfile)
+  - `lua/plugins/theme.lua`: Tokyo Night (style=night, transparent)
+  - `lua/plugins/snacks-animated-scrolling-off.lua`: disables snacks.nvim smooth scrolling
+  - `plugin/after/transparency.lua`: transparent-background fallback for highlight groups
+  - `lazyvim.json`: enabled LazyVim extras (editor.neo-tree)
+  - `lazy-lock.json`: pinned plugin commits - commit changes to this to keep machines in sync
+- Plugin data lives in `~/.local/share/nvim` (NOT tracked); rebuilt via `:Lazy restore`
+
+### Terminal Configuration
+- **ghostty/config**: Ghostty terminal (symlinked to ~/.config/ghostty)
+  - CaskaydiaMono Nerd Font, TokyoNight Night theme, background-opacity 0.97
+  - Reload with `Cmd+Shift+,` or restart Ghostty
+
 ### Important Paths
 - Custom git commands: `$HOME/dotfiles/git/new-git-command` (in PATH)
 - Local binaries: `$HOME/.local/bin` (in PATH)

@@ -88,5 +88,13 @@ brew install awscli
 
 brew install zsh
 
+# Neovim + LazyVim dependencies
+brew install neovim
+brew install ripgrep
+brew install fd
+brew install lazygit
+brew install fzf
+brew install tree-sitter-cli
+
 # Remove outdated versions from the cellar
 brew cleanup

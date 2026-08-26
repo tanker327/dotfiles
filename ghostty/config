@@ -1,0 +1,13 @@
+# Omarchy-style Ghostty config
+font-family = CaskaydiaMono Nerd Font
+font-size = 14
+
+theme = TokyoNight Night
+
+background-opacity = 0.97
+
+window-padding-x = 8
+window-padding-y = 8
+window-save-state = always
+
+macos-option-as-alt = true

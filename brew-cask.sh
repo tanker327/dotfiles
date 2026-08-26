@@ -63,3 +63,7 @@ brew install go2shell
 
 
 brew install --cask obsidian
+
+# Terminal + Nerd Font (Omarchy-style Neovim setup)
+brew install --cask ghostty
+brew install --cask font-caskaydia-mono-nerd-font

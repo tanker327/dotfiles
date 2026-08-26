@@ -11,7 +11,7 @@ Personal dotfiles repository for macOS and Ubuntu/VPS system configuration. Cont
 git clone https://github.com/tanker327/dotfiles.git ~/dotfiles
 cd ~/dotfiles
 
-# Full dotfiles installation (symlinks zshrc, gitconfig, etc.)
+# Full dotfiles installation (symlinks zshrc, gitconfig, nvim, ghostty, etc.)
 ./install.sh
 
 # Install Homebrew packages

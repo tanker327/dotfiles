@@ -171,6 +171,47 @@ setup_git() {
     log_success "Git ignore linked"
 }
 
+setup_nvim() {
+    section_header "Setting Up Neovim Configuration"
+
+    mkdir -p "$HOME/.config"
+
+    # Backup existing nvim config if it's a real directory (not our symlink)
+    if [ -d "$HOME/.config/nvim" ] && [ ! -L "$HOME/.config/nvim" ]; then
+        log_info "Backing up existing nvim config..."
+        mv -f "$HOME/.config/nvim" "$BACKUP_FOLDER/nvim.$(date +%Y%m%d_%H%M%S)"
+    fi
+
+    log_info "Creating symlink for ~/.config/nvim..."
+    ln -sfn "$CURRENT_FOLDER/nvim" "$HOME/.config/nvim"
+    log_success "Neovim configuration linked"
+
+    # Plugin data/state/cache are machine-local and rebuilt from lazy-lock.json
+    if command -v nvim >/dev/null 2>&1; then
+        log_info "Installing Neovim plugins (this may take a minute)..."
+        nvim --headless "+Lazy! restore" +qa >/dev/null 2>&1 || \
+            log_warning "Plugin install failed; run ':Lazy restore' inside nvim"
+        log_success "Neovim plugins installed"
+    else
+        log_warning "nvim not found - run ./brew.sh first, then ':Lazy restore' in nvim"
+    fi
+}
+
+setup_ghostty() {
+    section_header "Setting Up Ghostty Configuration"
+
+    mkdir -p "$HOME/.config"
+
+    if [ -d "$HOME/.config/ghostty" ] && [ ! -L "$HOME/.config/ghostty" ]; then
+        log_info "Backing up existing ghostty config..."
+        mv -f "$HOME/.config/ghostty" "$BACKUP_FOLDER/ghostty.$(date +%Y%m%d_%H%M%S)"
+    fi
+
+    log_info "Creating symlink for ~/.config/ghostty..."
+    ln -sfn "$CURRENT_FOLDER/ghostty" "$HOME/.config/ghostty"
+    log_success "Ghostty configuration linked"
+}
+
 #####################################################
 # Main Installation Flow
 #####################################################
@@ -186,6 +227,8 @@ main() {
     install_powerlevel10k
     setup_zsh
     setup_git
+    setup_nvim
+    setup_ghostty
 
     section_header "Installation Complete!"
     echo ""
