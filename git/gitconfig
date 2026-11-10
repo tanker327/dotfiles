@@ -133,15 +133,25 @@
 	old = red bold
 	new = green bold
 	whitespace = red reverse
+# Credential helpers work on macOS and Linux, and silently skip when the tool isn't installed.
+# gh: look in PATH first, then common install locations (GUI apps may not have Homebrew in PATH):
+#   /opt/homebrew/bin (Apple Silicon), /usr/local/bin (Intel Mac), /usr/bin (Linux apt)
 [credential "https://github.com"]
 	helper =
-	helper = !/opt/homebrew/bin/gh auth git-credential
+	helper = "!f() { for g in \"$(command -v gh)\" /opt/homebrew/bin/gh /usr/local/bin/gh /usr/bin/gh; do if [ -x \"$g\" ]; then exec \"$g\" auth git-credential \"$@\"; fi; done; }; f"
 [credential "https://gist.github.com"]
 	helper =
-	helper = !/opt/homebrew/bin/gh auth git-credential
+	helper = "!f() { for g in \"$(command -v gh)\" /opt/homebrew/bin/gh /usr/local/bin/gh /usr/bin/gh; do if [ -x \"$g\" ]; then exec \"$g\" auth git-credential \"$@\"; fi; done; }; f"
 [difftool "sourcetree"]
 	cmd = opendiff \"$LOCAL\" \"$REMOTE\"
 	path =
 [mergetool "sourcetree"]
 	cmd = /Applications/Sourcetree.app/Contents/Resources/opendiff-w.sh \"$LOCAL\" \"$REMOTE\" -ancestor \"$BASE\" -merge \"$MERGED\"
 	trustExitCode = true
+# Cursor origin: only used if ~/.local/bin/origin exists on this machine
+[credential "https://origin.cursor.com/git"]
+	helper =
+	helper = "!f() { if [ -x \"$HOME/.local/bin/origin\" ]; then exec \"$HOME/.local/bin/origin\" credential-helper \"$@\"; fi; }; f"
+[credential "https://origin.cursor.com"]
+	helper =
+	helper = "!f() { if [ -x \"$HOME/.local/bin/origin\" ]; then exec \"$HOME/.local/bin/origin\" credential-helper \"$@\"; fi; }; f"

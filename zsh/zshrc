@@ -88,6 +88,8 @@ fi
 if [ -d "$HOME/.docker/completions" ]; then
   fpath=($HOME/.docker/completions $fpath)
 fi
+# grok CLI completions (only if installed)
+[ -d "$HOME/.grok/completions/zsh" ] && fpath=($HOME/.grok/completions/zsh $fpath)
 autoload -Uz compinit
 compinit
 
@@ -129,7 +131,11 @@ command -v claude >/dev/null 2>&1 && claude update > /dev/null 2>&1 &!
 # OpenClaw Completion (only if installed)
 [ -f "$HOME/.openclaw/completions/openclaw.zsh" ] && source "$HOME/.openclaw/completions/openclaw.zsh"
 
+# skl CLI (compiled binary from skills-management repo, only if built)
+[ -d "$HOME/projects/work/skills-management/dist" ] && export PATH="$PATH:$HOME/projects/work/skills-management/dist"
+
 # >>> grok installer >>>
 # Only add to PATH if grok is actually installed (dotfiles are shared across machines)
+# Completions are added to fpath in the "Shell Completions" section above
 [ -d "$HOME/.grok/bin" ] && export PATH="$HOME/.grok/bin:$PATH"
 # <<< grok installer <<<
