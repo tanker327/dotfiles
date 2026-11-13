@@ -341,6 +341,7 @@ install_common_tools() {
         wget
         git
         git-extras
+        gh
         vim
         htop
         btop
