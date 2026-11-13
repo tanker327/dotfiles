@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="1.0.0"
+VERSION="1.0.1"
 
 #####################################################
 # macOS Setup Script - Complete Development Environment
@@ -72,6 +72,32 @@ skip_if_complete() {
         log_info "Step '$step_name' already completed, skipping..."
         return 0
     fi
+    return 1
+}
+
+# Put an already-installed Homebrew on PATH for this session.
+# Returns 1 if Homebrew is not installed at all.
+load_homebrew_env() {
+    command -v brew &> /dev/null && return 0
+
+    local brew_bin
+    for brew_bin in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+        if [ -x "$brew_bin" ]; then
+            eval "$("$brew_bin" shellenv)"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# True if any selected component is installed through Homebrew
+needs_homebrew() {
+    local flag
+    for flag in "$INSTALL_TOOLS" "$INSTALL_ZSH" "$INSTALL_DOCKER" "$INSTALL_TAILSCALE" \
+        "$INSTALL_ITERM2" "$INSTALL_VSCODE" "$INSTALL_SUBLIME" "$INSTALL_DBEAVER" \
+        "$INSTALL_CHROME" "$INSTALL_ALFRED" "$INSTALL_OBSIDIAN" "$INSTALL_GHOSTTY"; do
+        [ "$flag" = "y" ] && return 0
+    done
     return 1
 }
 
@@ -198,6 +224,18 @@ collect_user_inputs() {
     read -p "Generate SSH key (ED25519)? [Y/n]: " GENERATE_SSH_KEY </dev/tty
     GENERATE_SSH_KEY=${GENERATE_SSH_KEY:-y}
 
+    # Normalize answers: y/Y/yes -> "y", anything else -> "n"
+    local answer_var
+    for answer_var in INSTALL_HOMEBREW INSTALL_TOOLS INSTALL_ZSH INSTALL_UV INSTALL_NVM \
+        INSTALL_DOCKER INSTALL_TAILSCALE INSTALL_CLAUDE INSTALL_ITERM2 INSTALL_VSCODE \
+        INSTALL_SUBLIME INSTALL_DBEAVER INSTALL_CHROME INSTALL_ALFRED INSTALL_OBSIDIAN \
+        INSTALL_GHOSTTY INSTALL_DOTFILES GENERATE_SSH_KEY; do
+        case "${!answer_var}" in
+            [yY]|[yY][eE][sS]) printf -v "$answer_var" 'y' ;;
+            *) printf -v "$answer_var" 'n' ;;
+        esac
+    done
+
     # Summary of selections
     echo ""
     section_header "Configuration Summary"
@@ -276,11 +314,12 @@ install_homebrew() {
         log_info "Installing Homebrew..."
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-        # Add brew to PATH for Apple Silicon Macs
-        if [ -f "/opt/homebrew/bin/brew" ]; then
-            eval "$(/opt/homebrew/bin/brew shellenv)"
-            log_info "Configured Homebrew for Apple Silicon"
+        # Add brew to PATH for this session (Apple Silicon or Intel)
+        if ! load_homebrew_env; then
+            log_error "Homebrew installer finished but 'brew' was not found. Aborting."
+            exit 1
         fi
+        log_info "Configured Homebrew for this session"
     fi
 
     brew upgrade
@@ -314,7 +353,10 @@ install_common_tools() {
         terminal-notifier
         ffmpeg
         iproute2mac
+        mosh
     )
+
+    local failed=()
 
     log_info "Installing CLI tools: ${tools[*]}"
     for tool in "${tools[@]}"; do
@@ -322,9 +364,19 @@ install_common_tools() {
             log_info "$tool already installed"
         else
             log_info "Installing $tool..."
-            brew install "$tool" || log_warning "Failed to install $tool"
+            if ! brew install "$tool"; then
+                log_warning "Failed to install $tool"
+                failed+=("$tool")
+            fi
         fi
     done
+
+    # Leave the step incomplete so a resumed run retries the failures
+    if [ ${#failed[@]} -gt 0 ]; then
+        log_error "CLI tools not installed: ${failed[*]}"
+        log_warning "Continuing; retry later with: brew install ${failed[*]}"
+        return 0
+    fi
 
     log_success "Common CLI tools installed"
 
@@ -794,6 +846,12 @@ main() {
     log_info "Installation started at $(date)"
 
     # Phase 2: Install components
+    # Homebrew is a prerequisite: pick up an existing install (e.g. on resume,
+    # when it is not on PATH yet), and install it if a selected component needs it.
+    if ! load_homebrew_env && needs_homebrew && [ "$INSTALL_HOMEBREW" != "y" ]; then
+        log_warning "Homebrew not found but selected components require it - installing Homebrew"
+        INSTALL_HOMEBREW="y"
+    fi
     [ "$INSTALL_HOMEBREW" = "y" ] && install_homebrew
     [ "$INSTALL_TOOLS" = "y" ] && install_common_tools
     [ "$INSTALL_ZSH" = "y" ] && install_zsh_environment
